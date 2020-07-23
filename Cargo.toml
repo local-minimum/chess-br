@@ -1,0 +1,7 @@
+[package]
+name = "chess_br"
+version = "0.1.0"
+authors = ["Martin Zackrisson <martin.zackrisson@fripost.org>"]
+edition = "2018"
+
+[dependencies]
