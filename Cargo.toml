@@ -4,5 +4,13 @@ version = "0.1.0"
 authors = ["Martin Zackrisson <martin.zackrisson@fripost.org>"]
 edition = "2018"
 
+[lib]
+name = "chess_br"
+path = "src/lib.rs"
+
+[[bin]]
+name = "chess_br"
+path = "src/main.rs"
+
 [dependencies]
 rand = "^0.7.0"
