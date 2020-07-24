@@ -1,6 +1,6 @@
 use rand::Rng;
 
-use crate::playingfield::Coord;
+use crate::world::position::Coord;
 
 pub trait Board {
     fn shape(&self) -> Coord;

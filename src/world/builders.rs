@@ -1,8 +1,7 @@
 use rand::Rng;
 use std::convert::TryInto;
 
-use crate::playingfield::Coord;
-use crate::playingfield::Positional;
+use crate::world::position::{Coord, Positional};
 use crate::world::Direction;
 use crate::world::board::Board;
 

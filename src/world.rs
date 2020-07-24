@@ -1,4 +1,4 @@
-use crate::playingfield::Coord;
+use crate::world::position::Coord;
 use crate::world::builders::add_zones_rects;
 use crate::world::builders::add_fog;
 use crate::world::board::Board;
@@ -6,6 +6,7 @@ use crate::world::board::Board;
 pub mod board;
 pub mod builders;
 pub mod display;
+pub mod position;
 
 #[derive(Debug)]
 pub enum FogState {

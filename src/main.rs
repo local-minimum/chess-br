@@ -1,9 +1,8 @@
-use ::chess_br::playingfield::Coord;
-use ::chess_br::world::World;
-use ::chess_br::world::display::print_board;
 use ::chess_br::world::spawn;
+use ::chess_br::world::World;
 use ::chess_br::world::FogState;
-use ::chess_br::world::display::print_board_pair;
+use ::chess_br::world::position::Coord;
+use ::chess_br::world::display::{print_board, print_board_pair};
 
 fn play_fog(mut world: World) {
     let mut fog_type = FogState::Contracting;
