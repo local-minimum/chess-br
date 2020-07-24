@@ -1,22 +1,11 @@
-use ::chess_br::playingfield::spawn;
 use ::chess_br::playingfield::Coord;
-use ::chess_br::playingfield::encode_ch;
-use ::chess_br::playingfield::print_board;
-use ::chess_br::playingfield::FogState;
+use ::chess_br::world::World;
+use ::chess_br::world::display::print_board;
+use ::chess_br::world::spawn;
+use ::chess_br::world::FogState;
+use ::chess_br::world::display::print_board_pair;
 
-fn main() {
-    let mut world = spawn(Coord{x: 42, y: 16}, 4);
-    for (zone_row, fog_row) in world.zones.iter().zip(world.fog_curve.iter()) {
-        let zone_out = zone_row
-            .into_iter()
-            .map(|i| encode_ch(*i))
-            .collect::<String>();
-        let fog_out = fog_row
-            .into_iter()
-            .map(|i| encode_ch(*i))
-            .collect::<String>();
-        println!("{} {}", zone_out, fog_out);
-    }
+fn play_fog(mut world: World) {
     let mut fog_type = FogState::Contracting;
     loop {
         println!("\n** {} {:?}", world.status(), fog_type);
@@ -29,4 +18,10 @@ fn main() {
     }
     println!("\n** {} {:?}", world.status(), fog_type);
     print_board(&world.fog);
+}
+
+fn main() {
+    let world = spawn(Coord{x: 42, y: 16}, 4);
+    print_board_pair(&world.zones, &world.fog_curve);  
+    play_fog(world);
 }
