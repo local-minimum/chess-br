@@ -17,6 +17,7 @@ trait Positional {
     fn translate(&self, offset: Offset) -> Self;
     fn translate_direction(&self, direction: Direction) -> Self;
     fn area(&self, other: &Self) -> i16;
+    fn is_neighbour(&self, other: &Self) -> bool;
 }
 
 impl Positional for Coord {
@@ -39,6 +40,10 @@ impl Positional for Coord {
     fn area(&self, other: &Coord) -> i16 {
         ((self.x as i16 - other.x as i16) * (self.y as i16 - other.y as i16)).abs()
     }
+
+    fn is_neighbour(&self, other: &Self) -> bool {
+        (self.x as i16 - other.x as i16).abs() <= 1 && (self.y as i16 - other.y as i16).abs() <= 1
+    }
 }
 
 struct World {
@@ -50,7 +55,12 @@ trait Board {
     fn shape(&self) -> Coord;
     fn new_with<T: Clone>(&self, value: T) -> Vec<Vec<T>>;
     fn fill(&mut self, c1: &Coord, c2: &Coord, when: u16, value: u16);
-    fn mark_rnd_position(&mut self, value: u16) -> Coord; 
+    fn mark_rnd_position(&mut self, value: u16) -> Coord;
+    fn max_val(&self) -> u16;
+    fn coords_of(&self, value: u16) -> Vec<Coord>;
+    fn coords_not_of(&self, value: u16) -> Vec<Coord>;
+    fn coords_of_filtered(&self, value: u16, other: &Self, other_value: u16) ->  Vec<Coord>;
+    fn apply(&mut self, coords: &Vec<Coord>, value: u16);
 }
 
 impl Board for Vec<Vec<u16>> {
@@ -83,6 +93,63 @@ impl Board for Vec<Vec<u16>> {
         let source_y = rng.gen_range(0, s.y);
         self[source_y][source_x] = value;
         Coord{x: source_x, y: source_y}
+    }
+
+    fn max_val(&self) -> u16 {
+        let mut m: u16 = 0;
+        for row in self {
+            let row_max = row.iter().max();
+            match row_max {
+                Some(i) => m = m.max(*i),
+                _ => (),
+            }
+        }
+        m
+    }
+
+    fn coords_of(&self, value: u16) -> Vec<Coord> {
+        let mut coords: Vec<Coord> = vec![];
+        let shape = self.shape();
+        for x in 0..shape.x {
+            for y in 0..shape.y {
+                if self[y][x] == value {
+                    coords.push(Coord{x, y});
+                }
+            }
+        }
+        coords
+    }
+
+    fn coords_not_of(&self, value: u16) -> Vec<Coord> {
+        let mut coords: Vec<Coord> = vec![];
+        let shape = self.shape();
+        for x in 0..shape.x {
+            for y in 0..shape.y {
+                if self[y][x] != value {
+                    coords.push(Coord{x, y});
+                }
+            }
+        }
+        coords
+    }
+
+    fn coords_of_filtered(&self, value: u16, other: &Self, other_value: u16) -> Vec<Coord> {
+        let mut coords: Vec<Coord> = vec![];
+        let shape = self.shape();
+        for x in 0..shape.x {
+            for y in 0..shape.y {
+                if self[y][x] == value && other[y][x] == other_value {
+                    coords.push(Coord{x, y});
+                }
+            }
+        }
+        coords
+    }
+
+    fn apply(&mut self, coords: &Vec<Coord>, value: u16) {
+        for coord in coords.iter() {
+            self[coord.y][coord.x] = value;
+        }
     }
 }
 
@@ -125,6 +192,21 @@ fn add_zones_rects(board: &mut Vec<Vec<u16>>, zones: u16) {
     board.fill(&Coord{x: 0, y: 0}, &shape, 0, zones + 1);
 }
 
+fn add_fog(fog: &mut Vec<Vec<u16>>, zones: &Vec<Vec<u16>>) {
+    let this_zone: Vec<Coord> = zones.coords_of(1);
+    fog.apply(&this_zone, 1);
+
+    for zone in 2..(zones.max_val() + 1) {
+        let this_zone = zones.coords_of(zone);
+        let not_this_zone = zones.coords_not_of(zone);
+        for coord in this_zone.iter() {
+            if not_this_zone.iter().any(|other| coord.is_neighbour(other)) {
+                fog[coord.y][coord.x] = 1;
+            }
+        }
+    }
+}
+
 fn main() {
     let shape = Coord{ x: 4 * 16, y: 16};
     let zones = vec![vec![0; shape.x]; shape.y];
@@ -133,8 +215,8 @@ fn main() {
         zones,
         fog_curve,
     };
-    
     add_zones_rects(&mut world.zones, 4);
+    add_fog(&mut world.fog_curve, &world.zones);
     for (zone_row, fog_row) in world.zones.iter().zip(world.fog_curve.iter()) {
         let zone_out = zone_row.into_iter().map(|i| i.to_string()).collect::<String>();
         let fog_out = fog_row.into_iter().map(|i| i.to_string()).collect::<String>();
