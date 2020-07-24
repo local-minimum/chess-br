@@ -1,6 +1,7 @@
 use rand::Rng;
 use std::convert::TryInto;
 use std::fmt::Debug;
+use std::char;
 
 #[derive(Debug)]
 pub struct Coord {pub x: usize, pub y: usize}
@@ -260,32 +261,10 @@ fn add_fog(fog: &mut Vec<Vec<u16>>, zones: &Vec<Vec<u16>>) {
         }
         prev_zone.extend(this_zone);
 
-        /*
-        // Set outer border distance as 2
-        let this_zone = zones.coords_of_filtered(zone, &fog, 0);
-        let not_this_zone = zones.coords_not_of(zone);
-        for coord in this_zone.iter() {
-            if not_this_zone.iter().any(|other| coord.is_neighbour(other)) {
-                fog[coord.y][coord.x] = 2;
-            }
-        }
-
-        // Set world edge as 2 too
-        let this_zone = zones.coords_of_filtered(zone, &fog, 0);
-        for coord in this_zone.iter() {
-            if coord.x == 0 || coord.y == 0 || coord.x == edge.x || coord.y == edge.y {
-                fog[coord.y][coord.x] = 2;
-            }
-        }
-        */
-
         let mut cur_value = 1;
         loop {        
             let this_zone = zones.coords_of_filtered(zone, &fog, 0);
             if this_zone.len() == 0 {
-                break;
-            }
-            if cur_value == 9 {
                 break;
             }
             for coord in this_zone.iter() {
@@ -296,6 +275,18 @@ fn add_fog(fog: &mut Vec<Vec<u16>>, zones: &Vec<Vec<u16>>) {
             }
             cur_value += 1;
         }
+    }
+}
+
+fn encode_ch(val: u16) -> String {
+    if val > 9 {
+       let c = char::from_u32((val + 55) as u32);
+       match c {
+           None => ' '.to_string(),
+           Some(s) => s.to_string()
+       }
+    } else {
+        val.to_string()
     }
 }
 
@@ -310,8 +301,8 @@ fn main() {
     add_zones_rects(&mut world.zones, 4);
     add_fog(&mut world.fog_curve, &world.zones);
     for (zone_row, fog_row) in world.zones.iter().zip(world.fog_curve.iter()) {
-        let zone_out = zone_row.into_iter().map(|i| i.to_string()).collect::<String>();
-        let fog_out = fog_row.into_iter().map(|i| i.to_string()).collect::<String>();
+        let zone_out = zone_row.into_iter().map(|i| encode_ch(*i)).collect::<String>();
+        let fog_out = fog_row.into_iter().map(|i| encode_ch(*i)).collect::<String>();
         println!("{} {}", zone_out, fog_out);
     }
     
