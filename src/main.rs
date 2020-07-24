@@ -12,6 +12,7 @@ fn play_fog(mut world: World) {
         fog_type = world.contract_fog();
         match fog_type {
             FogState::Done => break,
+            FogState::Zone => print_board(&world.next_zone()),
             _ => (),
         }
     }

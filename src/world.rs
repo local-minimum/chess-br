@@ -1,6 +1,5 @@
-use crate::world::position::Coord;
-use crate::world::builders::add_zones_rects;
-use crate::world::builders::add_fog;
+use crate::world::position::{Coord, Positional};
+use crate::world::builders::{add_zones_rects, add_fog};
 use crate::world::board::Board;
 
 pub mod board;
@@ -69,6 +68,27 @@ impl World {
 
     pub fn status(&self) -> String {
         format!("Zone {} / step {}", self.active_zone, self.fog_value)
+    }
+    
+    pub fn next_zone(&self) -> Vec<Vec<u16>> {
+        let edge = self.zones.shape()
+            .translate_direction(Direction::West)
+            .translate_direction(Direction::North);
+        if self.active_zone < 2 {
+            return self.zones.new_with(0 as u16);
+        }
+        let coords = self.zones.coords_of(self.active_zone - 1);
+        let mut edges: Vec<Coord> = vec![];
+        for coord in coords.iter() {
+            //TODO: Should be neighbour_max
+            let val = self.zones.neighbour_min(coord, &edge);
+            if val == self.active_zone {
+                edges.push(Coord{x: coord.x, y: coord.y});
+            }
+        }
+        let mut ret = self.zones.new_with(0 as u16);
+        ret.apply(&edges, 1);
+        ret
     }
 }
 
