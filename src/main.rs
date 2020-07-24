@@ -7,19 +7,15 @@ struct Shape {pub size_x: usize, pub size_y: usize}
 
 struct World {
     zones: Vec<Vec<u16>>,
+    fog_curve: Vec<Vec<u16>>,
 }
 
-trait Board<T> {
-    fn new(size_x: usize, size_y: usize, value: T) -> Self;
+trait Board {
     fn shape(&self) -> Shape;
-    fn new_from<U: Clone>(&self, value: U) -> Vec<Vec<U>>;
+    fn new_with<T: Clone>(&self, value: T) -> Vec<Vec<T>>;
 }
 
-impl Board<u16> for Vec<Vec<u16>> {
-    fn new(size_x: usize, size_y: usize, value: u16) -> Vec<Vec<u16>> {
-        vec![vec![value; size_x]; size_y]
-    }
-
+impl Board for Vec<Vec<u16>> {
     fn shape(&self) -> Shape {
         Shape {
             size_x: self[0].len(),
@@ -27,7 +23,7 @@ impl Board<u16> for Vec<Vec<u16>> {
         }
     }
     
-    fn new_from<U: Clone>(&self, value: U) -> Vec<Vec<U>> {
+    fn new_with<U: Clone>(&self, value: U) -> Vec<Vec<U>> {
        let s = self.shape();
        vec![vec![value; s.size_x]; s.size_y]
     }
@@ -44,9 +40,9 @@ fn get_zone_sizes(zones: u16, size_x: usize, size_y: usize, portion: f32) -> Vec
     return areas 
 }
 
-fn add_zones_rects(mut board: Vec<Vec<u16>>, zones: u16) -> Vec<Vec<u16>> {
+fn add_zones_rects(board: &mut Vec<Vec<u16>>, zones: u16) {
     if zones < 2 {
-        return board;
+        return;
     }
     let size_y = board.len();
     let size_x = board[0].len();
@@ -88,22 +84,22 @@ fn add_zones_rects(mut board: Vec<Vec<u16>>, zones: u16) -> Vec<Vec<u16>> {
             }
         }
     }
-
-    board
 }
 
 fn main() {
-    let world_size = 16;
-    let world = World {
-        zones: Board::new(world_size * 3, world_size, 0),
+    let shape = Shape{  size_x: 4 * 16, size_y: 16};
+    let zones = vec![vec![0; shape.size_x]; shape.size_y];
+    let fog_curve = zones.new_with(0);
+    let mut world = World {
+        zones,
+        fog_curve,
     };
-    let board_fog = world.zones.new_from(0 as f32);
-    println!("{:?}", world.zones.shape());
-    /*
-    board_zones = add_zones_rects(board_zones, 4);
-    for row in board_zones {
-        let out = row.into_iter().map(|i| i.to_string()).collect::<String>();
-        println!("{}", out);
+    
+    add_zones_rects(&mut world.zones, 4);
+    for (zone_row, fog_row) in world.zones.iter().zip(world.fog_curve.iter()) {
+        let zone_out = zone_row.into_iter().map(|i| i.to_string()).collect::<String>();
+        let fog_out = fog_row.into_iter().map(|i| i.to_string()).collect::<String>();
+        println!("{} {}", zone_out, fog_out);
     }
-    */
+    
 }
