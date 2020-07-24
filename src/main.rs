@@ -5,31 +5,32 @@ use std::fmt::Debug;
 #[derive(Debug)]
 struct Shape {pub size_x: usize, pub size_y: usize}
 
-struct Board<T>(Vec<Vec<T>>);
-
-trait World<T> {
-    fn new(size_x: usize, size_y: usize, value: T) -> Self;
-    fn shape(&self) -> Shape;
+struct World {
+    zones: Vec<Vec<u16>>,
 }
 
-impl World<u16> for Board<u16> {
-    fn new(size_x: usize, size_y: usize, value: u16) -> Board<u16> {
-        Board{0: vec![vec![value; size_x]; size_y]}
+trait Board<T> {
+    fn new(size_x: usize, size_y: usize, value: T) -> Self;
+    fn shape(&self) -> Shape;
+    fn new_from<U: Clone>(&self, value: U) -> Vec<Vec<U>>;
+}
+
+impl Board<u16> for Vec<Vec<u16>> {
+    fn new(size_x: usize, size_y: usize, value: u16) -> Vec<Vec<u16>> {
+        vec![vec![value; size_x]; size_y]
     }
 
     fn shape(&self) -> Shape {
         Shape {
-            size_x: self.0[0].len(),
-            size_y: self.0.len(),
+            size_x: self[0].len(),
+            size_y: self.len(),
         }
-    }    
-}
-
-fn board_from_board<T: Clone, U: Clone>(board: Vec<Vec<U>>, value: T) -> Vec<Vec<T>> {
-    let size_y = board.len();
-    let size_x = board[0].len();
-    let board = vec![vec![value; size_x]; size_y];
-    board
+    }
+    
+    fn new_from<U: Clone>(&self, value: U) -> Vec<Vec<U>> {
+       let s = self.shape();
+       vec![vec![value; s.size_x]; s.size_y]
+    }
 }
 
 fn get_zone_sizes(zones: u16, size_x: usize, size_y: usize, portion: f32) -> Vec<u16> {
@@ -93,11 +94,13 @@ fn add_zones_rects(mut board: Vec<Vec<u16>>, zones: u16) -> Vec<Vec<u16>> {
 
 fn main() {
     let world_size = 16;
-    let board_zones = Board::new(world_size * 3, world_size, 0);
-    println!("{:?}", board_zones.shape());
+    let world = World {
+        zones: Board::new(world_size * 3, world_size, 0),
+    };
+    let board_fog = world.zones.new_from(0 as f32);
+    println!("{:?}", world.zones.shape());
     /*
     board_zones = add_zones_rects(board_zones, 4);
-    let board_fog = board_from_board(board_zones, 0 as f32);
     for row in board_zones {
         let out = row.into_iter().map(|i| i.to_string()).collect::<String>();
         println!("{}", out);
