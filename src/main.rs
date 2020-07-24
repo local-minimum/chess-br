@@ -14,6 +14,11 @@ pub mod playingfield {
         West,
     }
 
+    pub enum FogState {
+        Contracting,
+        Zone,
+        Done,
+    }
     pub trait Positional {
         fn translate(&self, offset: Offset) -> Self;
         fn translate_direction(&self, direction: Direction) -> Self;
@@ -69,29 +74,24 @@ pub mod playingfield {
             }
         }
 
-        pub fn contract_fog(&mut self) {
-            let shape = self.fog.shape();
-
+        pub fn contract_fog(&mut self) -> FogState {
             if self.fog_value == 0 {
                 if self.active_zone == 0 {
-                    println!("\n** Game is over");
-                    return;
+                    return FogState::Done;
                 }
                 self.active_zone -= 1;
                 self.fog_value = self.fog_curve.max_when(&self.zones, self.active_zone);
             } else {
                 self.fog_value -= 1;
                 if self.fog_value == 0 {
-                    println!("\n** Reached next zone");
-                    return;
+                    return FogState::Zone;
                 }
             }            
             let this_fog_curve = self.fog_curve
                 .new_when(&self.zones, self.active_zone, 0);
             
-            //println!("\n** Zone: {}, fog: {}", self.active_zone, self.fog_value);
-            //print_board(&this_fog_curve);
             self.fog.apply_when(1, &this_fog_curve, self.fog_value);
+            FogState::Contracting
         }
     }
 
