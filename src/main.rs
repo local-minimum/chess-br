@@ -1,6 +1,6 @@
-use std::char;
 
 pub mod playingfield { 
+    use std::char;
     use rand::Rng;
     use std::convert::TryInto;
     #[derive(Debug)]
@@ -50,6 +50,49 @@ pub mod playingfield {
     pub struct World {
         pub zones: Vec<Vec<u16>>,
         pub fog_curve: Vec<Vec<u16>>,
+        pub fog: Vec<Vec<u16>>,
+        fog_value: u16,
+        active_zone: u16,
+    }
+
+    impl World {
+        fn new(shape: Coord) -> Self {
+            let zones = vec![vec![0; shape.x]; shape.y];
+            let fog_curve = zones.new_with(0);
+            let fog = zones.new_with(0);
+            World {
+                zones,
+                fog_curve,
+                fog,
+                fog_value: 0,
+                active_zone: 0,
+            }
+        }
+
+        pub fn contract_fog(&mut self) {
+            let shape = self.fog.shape();
+
+            if self.fog_value == 0 {
+                if self.active_zone == 0 {
+                    println!("\n** Game is over");
+                    return;
+                }
+                self.active_zone -= 1;
+                self.fog_value = self.fog_curve.max_when(&self.zones, self.active_zone);
+            } else {
+                self.fog_value -= 1;
+                if self.fog_value == 0 {
+                    println!("\n** Reached next zone");
+                    return;
+                }
+            }            
+            let this_fog_curve = self.fog_curve
+                .new_when(&self.zones, self.active_zone, 0);
+            
+            //println!("\n** Zone: {}, fog: {}", self.active_zone, self.fog_value);
+            //print_board(&this_fog_curve);
+            self.fog.apply_when(1, &this_fog_curve, self.fog_value);
+        }
     }
 
     fn min_non_zero(a: u16, b: u16) -> u16 {
@@ -118,7 +161,7 @@ pub mod playingfield {
 
             let mut cur_value = 1;
             loop {        
-                let this_zone = zones.coords_of_filtered(zone, &fog, 0);
+                let this_zone = zones.coords_when(zone, &fog, 0);
                 if this_zone.len() == 0 {
                     break;
                 }
@@ -135,13 +178,16 @@ pub mod playingfield {
     pub trait Board {
         fn shape(&self) -> Coord;
         fn new_with<T: Clone>(&self, value: T) -> Vec<Vec<T>>;
+        fn new_when(&self, other: &Self, other_value: u16, fill: u16) -> Self;
         fn fill(&mut self, c1: &Coord, c2: &Coord, when: u16, value: u16);
         fn mark_rnd_position(&mut self, value: u16) -> Coord;
         fn max_val(&self) -> u16;
+        fn max_when(&self, other: &Self, other_value: u16) -> u16;
         fn coords_of(&self, value: u16) -> Vec<Coord>;
         fn coords_not_of(&self, value: u16) -> Vec<Coord>;
-        fn coords_of_filtered(&self, value: u16, other: &Self, other_value: u16) ->  Vec<Coord>;
+        fn coords_when(&self, value: u16, other: &Self, other_value: u16) ->  Vec<Coord>;
         fn apply(&mut self, coords: &Vec<Coord>, value: u16);
+        fn apply_when(&mut self, value: u16, other: &Self, other_value: u16);
         fn neighbour_min(&self, coord: &Coord, edge: &Coord) -> u16;
     }
 
@@ -154,8 +200,21 @@ pub mod playingfield {
         }
         
         fn new_with<U: Clone>(&self, value: U) -> Vec<Vec<U>> {
-        let s = self.shape();
-        vec![vec![value; s.x]; s.y]
+            let s = self.shape();
+            vec![vec![value; s.x]; s.y]
+        }
+
+        fn new_when(&self, other: &Self, other_value: u16, fill: u16) -> Self {
+            let s = self.shape();
+            let mut b = vec![vec![fill; s.x]; s.y];
+            for x in 0..s.x {
+                for y in 0..s.y {
+                    if other[y][x] == other_value {
+                        b[y][x] = self[y][x];
+                    }
+                }
+            }
+            b
         }
 
         fn fill(&mut self, c1: &Coord, c2: &Coord, when: u16, value: u16) {
@@ -189,6 +248,19 @@ pub mod playingfield {
             m
         }
 
+        fn max_when(&self, other: &Self, other_value: u16) -> u16 {
+            let mut m: u16 = 0;
+            let shape = self.shape();
+            for x in 0..shape.x {
+                for y in 0..shape.y {
+                    if other[y][x] == other_value {
+                        m = m.max(self[y][x]);
+                    }
+                }
+            }
+            m
+        }
+
         fn coords_of(&self, value: u16) -> Vec<Coord> {
             let mut coords: Vec<Coord> = vec![];
             let shape = self.shape();
@@ -215,7 +287,7 @@ pub mod playingfield {
             coords
         }
 
-        fn coords_of_filtered(&self, value: u16, other: &Self, other_value: u16) -> Vec<Coord> {
+        fn coords_when(&self, value: u16, other: &Self, other_value: u16) -> Vec<Coord> {
             let mut coords: Vec<Coord> = vec![];
             let shape = self.shape();
             for x in 0..shape.x {
@@ -232,6 +304,18 @@ pub mod playingfield {
             for coord in coords.iter() {
                 self[coord.y][coord.x] = value;
             }
+        }
+
+        fn apply_when(&mut self, value: u16, other: &Self, other_value: u16) {
+            let shape = self.shape();
+            for x in 0..shape.x {
+                for y in 0..shape.y {
+                    if other[y][x] == other_value {
+                       self[y][x] = value; 
+                    }
+                }
+            }
+            
         }
 
         fn neighbour_min(&self, coord: &Coord, edge: &Coord) -> u16 {
@@ -278,42 +362,55 @@ pub mod playingfield {
     }
 
     pub fn spawn(shape: Coord, nzones: u16) -> World {
-        let zones = vec![vec![0; shape.x]; shape.y];
-        let fog_curve = zones.new_with(0);
-        let mut world = World {
-            zones,
-            fog_curve,
-        };
+        let mut world = World::new(shape);
         add_zones_rects(&mut world.zones, nzones);
         add_fog(&mut world.fog_curve, &world.zones);
+        world.active_zone = world.zones.max_val() + 1;
         world
     }
-}
 
-fn encode_ch(val: u16) -> String {
-    if val > 9 {
-    let c = char::from_u32((val + 55) as u32);
-    match c {
-        None => ' '.to_string(),
-        Some(s) => s.to_string()
+    pub fn encode_ch(val: u16) -> String {
+        if val > 9 {
+        let c = char::from_u32((val + 55) as u32);
+        match c {
+            None => ' '.to_string(),
+            Some(s) => s.to_string()
+        }
+        } else {
+            val.to_string()
+        }
     }
-    } else {
-        val.to_string()
-    }
-}
 
+    pub fn print_board(board: &Vec<Vec<u16>>) {
+        println!("");
+        for row in board.iter() {
+            let out = row 
+                .into_iter()
+                .map(|i| encode_ch(*i))
+                .collect::<String>();
+
+            println!("{}", out);
+        }
+    }
+
+}
 fn main() {
-    let world = playingfield::spawn(playingfield::Coord{x: 42, y: 16}, 4);
+    let mut world = playingfield::spawn(playingfield::Coord{x: 42, y: 16}, 4);
     for (zone_row, fog_row) in world.zones.iter().zip(world.fog_curve.iter()) {
         let zone_out = zone_row
             .into_iter()
-            .map(|i| encode_ch(*i))
+            .map(|i| playingfield::encode_ch(*i))
             .collect::<String>();
         let fog_out = fog_row
             .into_iter()
-            .map(|i| encode_ch(*i))
+            .map(|i| playingfield::encode_ch(*i))
             .collect::<String>();
         println!("{} {}", zone_out, fog_out);
     }
     
+    for _ in 0..40 {
+        playingfield::print_board(&world.fog);
+        world.contract_fog();
+    }
+    playingfield::print_board(&world.fog);
 }
