@@ -51,6 +51,12 @@ struct World {
     fog_curve: Vec<Vec<u16>>,
 }
 
+fn min_non_zero(a: u16, b: u16) -> u16 {
+    if a == 0 { return  b;}
+    if b == 0 { return  a;}
+    a.min(b)
+}
+
 trait Board {
     fn shape(&self) -> Coord;
     fn new_with<T: Clone>(&self, value: T) -> Vec<Vec<T>>;
@@ -61,6 +67,7 @@ trait Board {
     fn coords_not_of(&self, value: u16) -> Vec<Coord>;
     fn coords_of_filtered(&self, value: u16, other: &Self, other_value: u16) ->  Vec<Coord>;
     fn apply(&mut self, coords: &Vec<Coord>, value: u16);
+    fn neighbour_min(&self, coord: &Coord, edge: &Coord) -> u16;
 }
 
 impl Board for Vec<Vec<u16>> {
@@ -151,6 +158,48 @@ impl Board for Vec<Vec<u16>> {
             self[coord.y][coord.x] = value;
         }
     }
+
+    fn neighbour_min(&self, coord: &Coord, edge: &Coord) -> u16 {
+        let mut val = 0;
+        if coord.x > 1 {
+            if coord.y > 0 {
+                val = min_non_zero(
+                        min_non_zero(
+                            min_non_zero(val, self[coord.y - 1][coord.x - 1]),
+                            self[coord.y][coord.x - 1],
+                        ),
+                        self[coord.y - 1][coord.x],
+                    );
+            } else {
+                val = min_non_zero(val, self[coord.y][coord.x - 1]);
+            }
+            if coord.y < edge.y {
+                val = min_non_zero(val, self[coord.y + 1][coord.x - 1]);
+            }
+        } else if coord.y > 0 {
+            val = min_non_zero(val, self[coord.y - 1][coord.x]);
+
+        }
+        if coord.x < edge.x {
+            if coord.y < edge.y {
+                val = min_non_zero(
+                    min_non_zero(
+                        min_non_zero(val, self[coord.y + 1][coord.x + 1]),
+                        self[coord.y][coord.x + 1]),
+                    self[coord.y + 1][coord.x],
+                );
+
+            } else {
+                val = min_non_zero(val, self[coord.y][coord.x + 1]);
+            }
+            if coord.y > 0 {
+                val = min_non_zero(val, self[coord.y - 1][coord.x + 1]);
+            }
+        } else if coord.y < edge.y {
+            val = min_non_zero(val, self[coord.y + 1][coord.x]);
+        }        
+        val
+    }
 }
 
 fn get_zone_sizes(zones: u16, shape: &Coord, portion: f32) -> Vec<u16> {
@@ -193,16 +242,59 @@ fn add_zones_rects(board: &mut Vec<Vec<u16>>, zones: u16) {
 }
 
 fn add_fog(fog: &mut Vec<Vec<u16>>, zones: &Vec<Vec<u16>>) {
-    let this_zone: Vec<Coord> = zones.coords_of(1);
-    fog.apply(&this_zone, 1);
+    let mut prev_zone: Vec<Coord> = zones.coords_of(1);
+    fog.apply(&prev_zone, 1);
+    let max_zone = zones.max_val();
+    let edge = zones.shape()
+        .translate_direction(Direction::West)
+        .translate_direction(Direction::North);
 
-    for zone in 2..(zones.max_val() + 1) {
+    for zone in 2..(max_zone + 1) {
         let this_zone = zones.coords_of(zone);
+
+        // Set inner border distance as 1
+        for coord in this_zone.iter() {
+            if prev_zone.iter().any(|other| coord.is_neighbour(other)) {
+                fog[coord.y][coord.x] = 1;
+            }
+        }
+        prev_zone.extend(this_zone);
+
+        /*
+        // Set outer border distance as 2
+        let this_zone = zones.coords_of_filtered(zone, &fog, 0);
         let not_this_zone = zones.coords_not_of(zone);
         for coord in this_zone.iter() {
             if not_this_zone.iter().any(|other| coord.is_neighbour(other)) {
-                fog[coord.y][coord.x] = 1;
+                fog[coord.y][coord.x] = 2;
             }
+        }
+
+        // Set world edge as 2 too
+        let this_zone = zones.coords_of_filtered(zone, &fog, 0);
+        for coord in this_zone.iter() {
+            if coord.x == 0 || coord.y == 0 || coord.x == edge.x || coord.y == edge.y {
+                fog[coord.y][coord.x] = 2;
+            }
+        }
+        */
+
+        let mut cur_value = 1;
+        loop {        
+            let this_zone = zones.coords_of_filtered(zone, &fog, 0);
+            if this_zone.len() == 0 {
+                break;
+            }
+            if cur_value == 9 {
+                break;
+            }
+            for coord in this_zone.iter() {
+                let nmin = fog.neighbour_min(coord, &edge);
+                if nmin == cur_value {
+                    fog[coord.y][coord.x] = cur_value + 1;
+                }
+            }
+            cur_value += 1;
         }
     }
 }
