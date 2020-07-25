@@ -1,4 +1,4 @@
-use crate::world::position::{Coord, Positional};
+use crate::world::position::Coord;
 use crate::world::builders::{add_zones_rects, add_fog};
 use crate::world::board::Board;
 
@@ -14,11 +14,37 @@ pub enum FogState {
     Done,
 }
 
+#[derive(Debug, Copy)]
 pub enum Direction {
     North,
+    NorthEast,
     East,
+    SouthEast,
     South,
+    SouthWest,
     West,
+    NorthWest,
+}
+
+impl Clone for Direction {
+    fn clone(&self) -> Direction {
+        *self
+    }
+}
+
+impl Direction {
+    pub fn iterator() -> impl Iterator<Item = Direction> {
+        [
+            Direction::North,
+            Direction::NorthEast,
+            Direction::East,
+            Direction::SouthEast,
+            Direction::South,
+            Direction::SouthWest,
+            Direction::West,
+            Direction::NorthWest,
+        ].iter().copied()
+    }
 }
 
 pub struct World {
@@ -69,25 +95,25 @@ impl World {
     pub fn status(&self) -> String {
         format!("Zone {} / step {}", self.active_zone, self.fog_value)
     }
-    
-    pub fn next_zone(&self) -> Vec<Vec<u16>> {
-        let edge = self.zones.shape()
-            .translate_direction(Direction::West)
-            .translate_direction(Direction::North);
-        if self.active_zone < 2 {
-            return self.zones.new_with(0 as u16);
-        }
-        let coords = self.zones.coords_of(self.active_zone - 1);
-        let mut edges: Vec<Coord> = vec![];
-        for coord in coords.iter() {
-            //TODO: Should be neighbour_max
-            let val = self.zones.neighbour_min(coord, &edge);
-            if val == self.active_zone {
-                edges.push(Coord{x: coord.x, y: coord.y});
-            }
-        }
+
+    pub fn next_zone(&self, edge_only: bool) -> Vec<Vec<u16>> {
         let mut ret = self.zones.new_with(0 as u16);
-        ret.apply(&edges, 1);
+        if self.active_zone < 2 {
+            return ret;
+        }
+
+        let mut inner: Vec<Coord> = vec![];
+        let coords = self.zones.coords_of_lambda(&(|val| val < self.active_zone));
+        ret.apply(&coords, 1);
+        if edge_only {
+            for coord in coords.iter() {
+                if !ret.neighbour_has_lambda(coord, true, &(|own, neigh| own == 1 && neigh == 0)) {
+                    inner.push(Coord{x: coord.x, y: coord.y});
+                }
+            }
+            ret.apply(&inner, 0);
+        }
+
         ret
     }
 }

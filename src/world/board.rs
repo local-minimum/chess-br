@@ -1,6 +1,7 @@
 use rand::Rng;
 
-use crate::world::position::Coord;
+use crate::world::position::{Coord, Positional};
+use crate::world::Direction;
 
 pub trait Board {
     fn shape(&self) -> Coord;
@@ -11,11 +12,13 @@ pub trait Board {
     fn max_val(&self) -> u16;
     fn max_when(&self, other: &Self, other_value: u16) -> u16;
     fn coords_of(&self, value: u16) -> Vec<Coord>;
+    fn coords_of_lambda(&self, test: &dyn Fn(u16) -> bool) -> Vec<Coord>;
     fn coords_not_of(&self, value: u16) -> Vec<Coord>;
     fn coords_when(&self, value: u16, other: &Self, other_value: u16) ->  Vec<Coord>;
     fn apply(&mut self, coords: &Vec<Coord>, value: u16);
     fn apply_when(&mut self, value: u16, other: &Self, other_value: u16);
     fn neighbour_min(&self, coord: &Coord, edge: &Coord) -> u16;
+    fn neighbour_has_lambda(&self, coord: &Coord, out_of_bound_true: bool, test: &dyn Fn(u16, u16) -> bool) -> bool;
 }
 
 fn min_non_zero(a: u16, b: u16) -> u16 {
@@ -94,12 +97,12 @@ impl Board for Vec<Vec<u16>> {
         m
     }
 
-    fn coords_of(&self, value: u16) -> Vec<Coord> {
+    fn coords_of_lambda(&self, test: & dyn Fn(u16) -> bool) -> Vec<Coord> {
         let mut coords: Vec<Coord> = vec![];
         let shape = self.shape();
         for x in 0..shape.x {
             for y in 0..shape.y {
-                if self[y][x] == value {
+                if test(self[y][x]) {
                     coords.push(Coord{x, y});
                 }
             }
@@ -107,17 +110,12 @@ impl Board for Vec<Vec<u16>> {
         coords
     }
 
+    fn coords_of(&self, value: u16) -> Vec<Coord> {
+        self.coords_of_lambda(&(|val| val == value))
+    }
+
     fn coords_not_of(&self, value: u16) -> Vec<Coord> {
-        let mut coords: Vec<Coord> = vec![];
-        let shape = self.shape();
-        for x in 0..shape.x {
-            for y in 0..shape.y {
-                if self[y][x] != value {
-                    coords.push(Coord{x, y});
-                }
-            }
-        }
-        coords
+        self.coords_of_lambda(&(|val| val != value))
     }
 
     fn coords_when(&self, value: u16, other: &Self, other_value: u16) -> Vec<Coord> {
@@ -191,5 +189,25 @@ impl Board for Vec<Vec<u16>> {
             val = min_non_zero(val, self[coord.y + 1][coord.x]);
         }        
         val
+    }
+
+    fn neighbour_has_lambda(&self, coord: &Coord, out_of_bound_true: bool, test: &dyn Fn(u16, u16) -> bool) -> bool {
+        let shape = self.shape();
+        let own = self[coord.y][coord.x];        
+        for direction in Direction::iterator() {
+            if coord.is_legal_direction(direction) {
+                let other = coord.translate_direction(direction);
+                if other.is_inside(&shape) {
+                    if test(own, self[other.y][other.x]) {
+                        return true;
+                    }
+                } else if out_of_bound_true {
+                    return true;
+                }
+            } else if out_of_bound_true {
+                return true;
+            }
+        }
+        false
     }
 }

@@ -49,8 +49,7 @@ pub fn add_fog(fog: &mut Vec<Vec<u16>>, zones: &Vec<Vec<u16>>) {
     fog.apply(&prev_zone, 1);
     let max_zone = zones.max_val();
     let edge = zones.shape()
-        .translate_direction(Direction::West)
-        .translate_direction(Direction::North);
+        .translate_direction(Direction::NorthWest);
 
     for zone in 2..(max_zone + 1) {
         let this_zone = zones.coords_of(zone);
