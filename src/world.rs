@@ -74,20 +74,21 @@ impl Clone for Pieces {
 
 impl Pieces {
     pub fn steps(&self, from: Coord, to: Coord) -> Option<Vec<Coord>> {
+        const LIMIT: i16 = 9;
         let off: Offset = to - from;
         match self {
             Pieces::Empty => None,
             Pieces::King => if off.chebyshev() == 1 { from.steps(&to) } else { None },
             Pieces::Pawn => if off.chebyshev() == 1 { from.steps(&to) } else { None },
             Pieces::Knight => if off.chebyshev() == 2 && off.skew() == 1 { from.steps(&to) } else { None },
-            Pieces::Bishop => if off.chebyshev() < 9 && off.skew() == 0 { from.steps(&to) } else { None },
+            Pieces::Bishop => if off.chebyshev() < LIMIT && off.skew() == 0 { from.steps(&to) } else { None },
             Pieces::Rook => {
                 let c = off.chebyshev();
-                if c < 9 && off.manhattan() == c { from.steps(&to) } else { None }
+                if c < LIMIT && off.manhattan() == c { from.steps(&to) } else { None }
             },
             Pieces::Queen => {
                 let c = off.chebyshev();
-                if c < 9 && (off.skew() == 0 || off.manhattan() == c) {
+                if c < LIMIT && (off.skew() == 0 || off.manhattan() == c) {
                     from.steps(&to)
                 } else { None }
             },
@@ -189,8 +190,13 @@ impl World {
     pub fn do_move(&mut self, action: Action, user: u16) {
         match action {
             Action::None => (),
-            Action::Drop => (),
-            Action::Fly(_o) => (),
+            Action::Drop => {
+                // Place king in flyers if not there
+            },
+            Action::Fly(o) => {
+                let _dir = o.direction();
+                // Move flying king and decrease altitude
+            },
             Action::Move(from, to) => {
                 if self.pieces_player[from.y][from.x] != user { return; }
                 let piece = self.pieces_types[from.y][from.x];
