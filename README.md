@@ -20,7 +20,6 @@ Doesn't depend on shapes but given game length of N ticks.
 - [x] Game should expose next zone.
 - [x] Should be able to contract fog, this is based on 8 neighbour distance.
 
-
 ## Actions
 
 - [ ] Record history as text
@@ -41,3 +40,4 @@ Doesn't depend on shapes but given game length of N ticks.
 - [ ] Allow pawn first move two steps (requires piece knowing last move)
 - [ ] Allow promotion (requires pawn know traversed distance)
 - [ ] Gain piece by proximity
+- [ ] Castling pre 1972 rules (req know traversed distance)

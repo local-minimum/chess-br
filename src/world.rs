@@ -1,11 +1,13 @@
-use crate::world::position::{Coord, Offset, Positional};
+use crate::world::position::{Coord, Offset};
 use crate::world::builders::{add_zones_rects, add_fog};
 use crate::world::board::Board;
+use crate::world::pieces::Pieces;
 
 pub mod board;
 pub mod builders;
 pub mod display;
 pub mod position;
+pub mod pieces;
 
 #[derive(Debug)]
 pub enum FogState {
@@ -55,46 +57,6 @@ pub enum Action {
     Move(Coord, Coord),
 }
 
-#[derive(Debug, Copy)]
-pub enum Pieces {
-    Empty,
-    Rook,
-    Knight,
-    Bishop,
-    Queen,
-    King,
-    Pawn,
-}
-
-impl Clone for Pieces {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl Pieces {
-    pub fn steps(&self, from: Coord, to: Coord) -> Option<Vec<Coord>> {
-        const LIMIT: i16 = 9;
-        let off: Offset = to - from;
-        match self {
-            Pieces::Empty => None,
-            Pieces::King => if off.chebyshev() == 1 { from.steps(&to) } else { None },
-            Pieces::Pawn => if off.chebyshev() == 1 { from.steps(&to) } else { None },
-            Pieces::Knight => if off.chebyshev() == 2 && off.skew() == 1 { from.steps(&to) } else { None },
-            Pieces::Bishop => if off.chebyshev() < LIMIT && off.skew() == 0 { from.steps(&to) } else { None },
-            Pieces::Rook => {
-                let c = off.chebyshev();
-                if c < LIMIT && off.manhattan() == c { from.steps(&to) } else { None }
-            },
-            Pieces::Queen => {
-                let c = off.chebyshev();
-                if c < LIMIT && (off.skew() == 0 || off.manhattan() == c) {
-                    from.steps(&to)
-                } else { None }
-            },
-        }
-    }
-}
 
 pub struct World {
     pub zones: Vec<Vec<u16>>,
