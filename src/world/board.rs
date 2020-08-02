@@ -1,7 +1,7 @@
 use rand::Rng;
 
 use crate::world::position::{Coord, Positional};
-use crate::world::Direction;
+use crate::world::direction::Direction;
 
 pub trait Board {
     fn shape(&self) -> Coord;
@@ -34,7 +34,7 @@ impl Board for Vec<Vec<u16>> {
             y: self.len(),
         }
     }
-    
+
     fn new_with<U: Clone>(&self, value: U) -> Vec<Vec<U>> {
         let s = self.shape();
         vec![vec![value; s.x]; s.y]
@@ -142,11 +142,11 @@ impl Board for Vec<Vec<u16>> {
         for x in 0..shape.x {
             for y in 0..shape.y {
                 if other[y][x] == other_value {
-                    self[y][x] = value; 
+                    self[y][x] = value;
                 }
             }
         }
-        
+
     }
 
     fn neighbour_min(&self, coord: &Coord, edge: &Coord) -> u16 {
@@ -187,13 +187,13 @@ impl Board for Vec<Vec<u16>> {
             }
         } else if coord.y < edge.y {
             val = min_non_zero(val, self[coord.y + 1][coord.x]);
-        }        
+        }
         val
     }
 
     fn neighbour_has_lambda(&self, coord: &Coord, out_of_bound_true: bool, test: &dyn Fn(u16, u16) -> bool) -> bool {
         let shape = self.shape();
-        let own = self[coord.y][coord.x];        
+        let own = self[coord.y][coord.x];
         for direction in Direction::iterator() {
             if coord.is_legal_direction(direction) {
                 let other = coord.translate_direction(direction);

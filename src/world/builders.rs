@@ -2,18 +2,18 @@ use rand::Rng;
 use std::convert::TryInto;
 
 use crate::world::position::{Coord, Positional};
-use crate::world::Direction;
+use crate::world::direction::Direction;
 use crate::world::board::Board;
 
 fn get_zone_sizes(zones: u16, shape: &Coord, portion: f32) -> Vec<u16> {
     let mut area: u16 = (shape.x * shape.y).try_into().unwrap();
-    let mut areas = vec![1 as u16; zones.into()];    
+    let mut areas = vec![1 as u16; zones.into()];
     for idx in 1..zones.into() {
         let a = ((area as f32) * portion).floor() as u16;
         areas[zones as usize - idx] = a;
         area -= a;
     }
-    return areas 
+    return areas
 }
 
 pub fn add_zones_rects(board: &mut Vec<Vec<u16>>, zones: u16) {
@@ -31,7 +31,7 @@ pub fn add_zones_rects(board: &mut Vec<Vec<u16>>, zones: u16) {
     for zone in 1..zones {
         while areas[zone as usize] > c1.area(&c2) as u16 {
             let grow = rng.gen_range(0, 4);
-            match grow {            
+            match grow {
                 0 => if c1.x > 1 {c1 = c1.translate_direction(Direction::West)},
                 1 => if c2.x + 1 < shape.x {c2 = c2.translate_direction(Direction::East)},
                 2 => if c1.y > 1 {c1 = c1.translate_direction(Direction::North)},
@@ -63,7 +63,7 @@ pub fn add_fog(fog: &mut Vec<Vec<u16>>, zones: &Vec<Vec<u16>>) {
         prev_zone.extend(this_zone);
 
         let mut cur_value = 1;
-        loop {        
+        loop {
             let this_zone = zones.coords_when(zone, &fog, 0);
             if this_zone.len() == 0 {
                 break;
@@ -78,4 +78,3 @@ pub fn add_fog(fog: &mut Vec<Vec<u16>>, zones: &Vec<Vec<u16>>) {
         }
     }
 }
-

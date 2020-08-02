@@ -8,45 +8,13 @@ pub mod builders;
 pub mod display;
 pub mod position;
 pub mod pieces;
+pub mod direction;
 
 #[derive(Debug)]
 pub enum FogState {
     Contracting,
     Zone,
     Done,
-}
-
-#[derive(Debug, Copy)]
-pub enum Direction {
-    North,
-    NorthEast,
-    East,
-    SouthEast,
-    South,
-    SouthWest,
-    West,
-    NorthWest,
-}
-
-impl Clone for Direction {
-    fn clone(&self) -> Direction {
-        *self
-    }
-}
-
-impl Direction {
-    pub fn iterator() -> impl Iterator<Item = Direction> {
-        [
-            Direction::North,
-            Direction::NorthEast,
-            Direction::East,
-            Direction::SouthEast,
-            Direction::South,
-            Direction::SouthWest,
-            Direction::West,
-            Direction::NorthWest,
-        ].iter().copied()
-    }
 }
 
 #[derive(Debug)]

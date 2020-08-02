@@ -1,7 +1,7 @@
 use std::ops::Sub;
 use std::cmp::max;
 
-use crate::world::Direction;
+use crate::world::direction::Direction;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Coord {pub x: usize, pub y: usize}
