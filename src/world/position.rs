@@ -1,9 +1,12 @@
-use crate::world::Direction; 
+use std::ops::Sub;
+use std::cmp::max;
 
-#[derive(Debug)]
+use crate::world::Direction;
+
+#[derive(Debug, Copy, Clone)]
 pub struct Coord {pub x: usize, pub y: usize}
+#[derive(Debug, Copy, Clone)]
 pub struct Offset {pub x: i16, pub y: i16}
-
 
 pub trait Positional {
     fn translate(&self, offset: Offset) -> Self;
@@ -12,6 +15,17 @@ pub trait Positional {
     fn is_neighbour(&self, other: &Self) -> bool;
     fn is_legal_direction(&self, direction: Direction) -> bool;
     fn is_inside(&self, other: &Self) -> bool;
+    fn steps(&self, other: &Self) -> Option<Vec<Coord>>;
+}
+
+impl Sub for Coord {
+    type Output = Offset;
+    fn sub(self, rhs: Coord) -> Self::Output {
+        Offset{
+            x: (self.x as i16) - (rhs.x as i16),
+            y: (self.y as i16) - (rhs.y as i16),
+        }
+    }
 }
 
 impl Positional for Coord {
@@ -44,7 +58,7 @@ impl Positional for Coord {
             Direction::NorthWest => self.x > 0 && self.y > 0,
             _ => true,
         }
-        
+
     }
 
     fn area(&self, other: &Coord) -> i16 {
@@ -57,5 +71,52 @@ impl Positional for Coord {
 
     fn is_inside(&self, other: &Self) -> bool {
         self.x < other.x && self.y < other.y
+    }
+
+    fn steps(&self, other: &Self) -> Option<Vec<Coord>> {
+        let off: Offset = *self - *other;
+        let s = off.skew();
+        if s > 1 {
+            None
+        } else {
+            let dir = off.direction();
+            let mut cur = self.clone();
+            let mut v = Vec::new();
+            for _ in 0..(off.chebyshev() - 1) {
+                cur = cur.translate(dir);
+                v.push(cur.clone());
+            }
+            Some(v)
+        }
+    }
+}
+
+impl Offset {
+    pub fn abs(&self) -> Self {
+        Offset{x: self.x.abs(), y: self.y.abs()}
+    }
+
+    pub fn sq_len(&self) -> i16 {
+        self.x * self.x + self.y * self.y
+    }
+
+    pub fn chebyshev(&self) -> i16 {
+        max(self.x.abs(), self.y.abs())
+    }
+
+    pub fn manhattan(&self) -> i16 {
+        self.x.abs() + self.y.abs()
+    }
+
+    pub fn skew(&self) -> i16 {
+        let a = self.abs();
+        return (a.x - a.y).abs()
+    }
+
+    pub fn direction(&self) -> Self {
+        Offset{
+            x: if self.x < 0 { -1 } else if self.x > 0 { 1 } else { 0 },
+            y: if self.y < 0 { -1 } else if self.y > 0 { 1 } else { 0 },
+        }
     }
 }
