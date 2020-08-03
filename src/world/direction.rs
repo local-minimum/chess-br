@@ -41,9 +41,9 @@ impl Direction {
 
     }
 
-    pub fn rnd_next(&self) -> Direction {
+    pub fn rnd_next(&self, ratio: u16) -> Direction {
         let mut rng = rand::thread_rng();
-        match rng.gen_range(0, 3) {
+        match rng.gen_range(0, ratio + 2) {
             0 => {
                 match self {
                     Direction::North => Direction::NorthWest,

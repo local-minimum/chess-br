@@ -1,5 +1,5 @@
 use crate::world::position::{Coord, Offset};
-use crate::world::builders::{add_zones_rects, add_fog};
+use crate::world::builders::{add_zones_rects, add_fog, add_fly_path};
 use crate::world::board::Board;
 use crate::world::pieces::Pieces;
 
@@ -32,6 +32,8 @@ pub struct World {
     pub fog: Vec<Vec<u16>>,
     pub pieces_types: Vec<Vec<Pieces>>,
     pub pieces_player: Vec<Vec<u16>>,
+    pub fly_path: Vec<Coord>,
+    pub fly_path_idx: usize,
     fog_value: u16,
     active_zone: u16,
 }
@@ -51,6 +53,8 @@ impl World {
             active_zone: 0,
             pieces_types: pieces,
             pieces_player: player,
+            fly_path: Vec::new(),
+            fly_path_idx: 0,
         }
     }
 
@@ -102,11 +106,6 @@ impl World {
         ret
     }
 
-
-    pub fn requst_action(&self, _action: Action, _user: u16) {
-        // push to some list
-    }
-
     fn has_piece_on_path(&self, steps: Vec<Coord>) -> bool {
         for step in steps {
             match self.pieces_types[step.y][step.x] {
@@ -151,6 +150,8 @@ pub fn spawn(shape: Coord, nzones: u16) -> World {
     let mut world = World::new(shape);
     add_zones_rects(&mut world.zones, nzones);
     add_fog(&mut world.fog_curve, &world.zones);
+    add_fly_path(&mut world.fly_path, world.zones.shape());
     world.active_zone = world.zones.max_val() + 1;
+
     world
 }
