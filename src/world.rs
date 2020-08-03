@@ -19,14 +19,19 @@ pub enum FogState {
     Done,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Action {
-    None,
-    Drop,
-    Fly(Offset),
-    Move(Coord, Coord),
+    None(u16),
+    Drop(u16),
+    Fly(u16, Offset),
+    Move(u16, Coord, Coord),
 }
 
+pub struct Record {
+    pub player: u16,
+    pub tick: usize,
+    pub action: Action,
+}
 
 pub struct World {
     pub zones: Vec<Vec<u16>>,
@@ -36,9 +41,14 @@ pub struct World {
     pub pieces_player: Vec<Vec<u16>>,
     pub fly_path: Vec<Coord>,
     fly_path_idx: i16,
-    pub players: Vec<Player>,
+    players: Vec<Player>,
     fog_value: u16,
     active_zone: u16,
+    flying: Vec<u16>,
+    falling: Vec<(u16, u16, Coord)>,
+    req_air_action: Vec<Action>,
+    tick: usize,
+    history: Vec<Record>,
 }
 
 impl World {
@@ -59,6 +69,11 @@ impl World {
             fly_path: Vec::new(),
             fly_path_idx: -1,
             players: Vec::new(),
+            flying: Vec::new(),
+            falling: Vec::new(),
+            req_air_action: Vec::new(),
+            tick: 0,
+            history: Vec::new(),
         }
     }
 
@@ -120,17 +135,25 @@ impl World {
         false
     }
 
-    pub fn do_move(&mut self, action: Action, user: u16) {
+    pub fn request_action(&mut self, action: Action) {
         match action {
-            Action::None => (),
-            Action::Drop => {
-                // Place king in flyers if not there
-            },
-            Action::Fly(o) => {
-                let _dir = o.direction();
-                // Move flying king and decrease altitude
-            },
-            Action::Move(from, to) => {
+            Action::Drop(user) => {
+                if self.flying.contains(&user) {
+                    self.req_air_action.push(action);
+                }
+            }
+            Action::Fly(user, _off) => {
+                if self.falling.iter().any(|(uid, h, _c)| *uid == user && *h > 1) {
+                    self.req_air_action.push(action);
+                }
+            }
+            _ => ()
+        }
+    }
+
+    pub fn do_move(&mut self, action: Action) {
+        match action {
+            Action::Move(user, from, to) => {
                 if self.pieces_player[from.y][from.x] != user { return; }
                 let piece = self.pieces_types[from.y][from.x];
                 match piece.steps(from, to) {
@@ -146,6 +169,7 @@ impl World {
                     }
                 }
             },
+            _ => ()
         }
     }
 
@@ -162,13 +186,59 @@ impl World {
         pathmap
     }
 
-    pub fn tick(&mut self) {
+    pub fn do_tick(&mut self) {
+        // Not really every tick probably
         if self.fly_path_idx < self.fly_path.len() as i16 {
             self.fly_path_idx += 1;
         } else {
-            // Not really every tick probably, but def not until
             self.contract_fog();
         }
+        let mut drop_actions: Vec<Action> = self.req_air_action
+            .iter()
+            .filter(| e | match e { Action::Drop(_u) => true, _ => false })
+            .map(|e | e.clone())
+            .collect();
+        let mut fly_actions: Vec<Action> = self.req_air_action
+            .iter()
+            .filter(| e | match e { Action::Fly(_u, _off) => true, _ => false })
+            .map(|e | e.clone())
+            .collect();
+        // Reset requests
+        self.req_air_action.clear();
+        while let Some(action) = fly_actions.pop() {
+            match action {
+                Action::Fly(user, off) => {
+                    let mut itemidx = -1;
+                    for (idx, item) in self.falling.iter().enumerate() {
+                        if user != item.0 { continue; }
+                        itemidx = idx as i32;
+                        break;
+                    }
+
+                },
+                _ => (),
+            }
+
+        }
+
+        // Drop everyone that wants to
+        let flyer = self.fly_path[self.fly_path_idx as usize];
+        while let Some(action) = drop_actions.pop() {
+            match action {
+                Action::Drop(user) => {
+                    if self.flying.contains(&user) {
+                        self.flying.retain(|a| *a != user);
+                        self.falling.push((user, 10, flyer.clone()));
+                        self.history.push(
+                            Record{player: user, tick: self.tick, action: action}
+                        );
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        self.req_air_action.clear()
     }
 
     pub fn players_by_score(&self) -> Vec<Player> {
@@ -186,7 +256,8 @@ pub fn spawn(shape: Coord, nzones: u16, players: &Vec<String>) -> World {
     world.active_zone = world.zones.max_val() + 1;
     let mut namer = GameNamer::new();
     for (idx, player) in players.iter().enumerate() {
-        world.players.push(Player::new(idx as u16, player.clone(), &mut namer))
+        world.players.push(Player::new(idx as u16, player.clone(), &mut namer));
+        world.flying.push(idx as u16);
     }
     world
 }
