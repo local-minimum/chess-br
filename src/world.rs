@@ -144,6 +144,19 @@ impl World {
             },
         }
     }
+
+    pub fn flypath_map(&self) -> Vec<Vec<u16>> {
+        let mut pathmap = self.zones.new_with(0 as u16);
+        for idx in 0..self.fly_path.len() {
+            let coord = self.fly_path[idx];
+            if self.fly_path_idx == idx {
+                pathmap[coord.y][coord.x] = 33;
+            } else {
+                pathmap[coord.y][coord.x] = 1;
+            }
+        }
+        pathmap
+    }
 }
 
 pub fn spawn(shape: Coord, nzones: u16) -> World {

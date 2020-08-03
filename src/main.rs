@@ -27,6 +27,7 @@ fn play_fog(mut world: World, print_fog: bool, print_next_zone: bool) {
 
 fn main() {
     let world = spawn(Coord{x: 42, y: 16}, 4);
-    print_board_pair(&world.zones, &world.fog_curve);
-    play_fog(world, false, true);
+    print_board_pair(&world.zones, &world.flypath_map());
+    //play_fog(world, false, true);
+
 }

@@ -83,12 +83,12 @@ fn fly_path_origin(shape: &Coord) -> (Coord, Direction) {
     let mut rng = rand::thread_rng();
     let dir = Direction::rnd();
     let coord = match dir {
-        Direction::SouthWest => Coord{x: rng.gen_range(shape.x / 2, shape.x), y: shape.y - 1},
-        Direction::South => Coord{x: rng.gen_range(shape.x / 4, shape.x * 3 / 4), y: shape.y - 1},
-        Direction::SouthEast => Coord{x: rng.gen_range(0, shape.x / 2), y: shape.y - 1},
-        Direction::NorthWest=> Coord{x: rng.gen_range(shape.x / 2, shape.x), y: 0},
-        Direction::North => Coord{x: rng.gen_range(shape.x / 4, shape.x * 3 / 4), y: 0},
-        Direction::NorthEast => Coord{x: rng.gen_range(0, shape.x / 2), y: 0},
+        Direction::NorthWest => Coord{x: rng.gen_range(shape.x / 2, shape.x), y: shape.y - 1},
+        Direction::North => Coord{x: rng.gen_range(shape.x / 4, shape.x * 3 / 4), y: shape.y - 1},
+        Direction::NorthEast => Coord{x: rng.gen_range(0, shape.x / 2), y: shape.y - 1},
+        Direction::SouthWest=> Coord{x: rng.gen_range(shape.x / 2, shape.x), y: 0},
+        Direction::South => Coord{x: rng.gen_range(shape.x / 4, shape.x * 3 / 4), y: 0},
+        Direction::SouthEast => Coord{x: rng.gen_range(0, shape.x / 2), y: 0},
         Direction::West => Coord{x: shape.x - 1, y: rng.gen_range(shape.y / 4, shape.y * 3 / 4)},
         Direction::East => Coord{x: 0, y: rng.gen_range(shape.y / 4, shape.y * 3 / 4)},
     };
@@ -97,6 +97,7 @@ fn fly_path_origin(shape: &Coord) -> (Coord, Direction) {
 
 pub fn add_fly_path(path: &mut Vec<Coord>, shape: Coord) {
     let (orig, orig_dir) = fly_path_origin(&shape);
+    println!("{:?} {:?}", orig_dir, orig);
     path.push(orig);
     loop {
         let mut dir = orig_dir.clone();
@@ -106,12 +107,11 @@ pub fn add_fly_path(path: &mut Vec<Coord>, shape: Coord) {
         match path.last() {
             Some(pos) => {
                 let next_pos = pos.translate_direction(dir);
-                if !next_pos.is_inside(&shape) || next_pos.x == 0 || next_pos.y == 0 {
-                    break;
-                }
+                if !next_pos.is_inside(&shape) { break; }
                 path.push(next_pos);
-            }
-            _ => (),
+                if next_pos.x == 0 || next_pos.y == 0 { break; }
+            },
+            None => (),
         }
     }
 }
