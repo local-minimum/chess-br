@@ -25,9 +25,20 @@ fn play_fog(mut world: World, print_fog: bool, print_next_zone: bool) {
     print_board(&world.fog);
 }
 
-fn main() {
-    let world = spawn(Coord{x: 42, y: 16}, 4);
-    print_board_pair(&world.zones, &world.flypath_map());
-    //play_fog(world, false, true);
+fn print_scores(world: &World) {
+    for (idx, player) in world.players_by_score().iter().enumerate() {
+        let (score, name) = player.in_game_info();
+        println!("{}.\t({})\t{}", idx + 1, score, name);
+    }
+}
 
+fn main() {
+    let world = spawn(
+        Coord{x: 42, y: 16},
+        4,
+        &vec![String::from("Player 1"), String::from("Player 2")]
+    );
+    print_board_pair(&world.zones, &world.flypath_map());
+    print_scores(&world);
+    //play_fog(world, false, true);
 }

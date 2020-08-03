@@ -97,7 +97,6 @@ fn fly_path_origin(shape: &Coord) -> (Coord, Direction) {
 
 pub fn add_fly_path(path: &mut Vec<Coord>, shape: Coord) {
     let (orig, orig_dir) = fly_path_origin(&shape);
-    println!("{:?} {:?}", orig_dir, orig);
     path.push(orig);
     loop {
         let mut dir = orig_dir.clone();

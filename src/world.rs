@@ -2,6 +2,7 @@ use crate::world::position::{Coord, Offset};
 use crate::world::builders::{add_zones_rects, add_fog, add_fly_path};
 use crate::world::board::Board;
 use crate::world::pieces::Pieces;
+use crate::world::player::{Player, GameNamer};
 
 pub mod board;
 pub mod builders;
@@ -9,6 +10,7 @@ pub mod display;
 pub mod position;
 pub mod pieces;
 pub mod direction;
+pub mod player;
 
 #[derive(Debug)]
 pub enum FogState {
@@ -33,7 +35,8 @@ pub struct World {
     pub pieces_types: Vec<Vec<Pieces>>,
     pub pieces_player: Vec<Vec<u16>>,
     pub fly_path: Vec<Coord>,
-    pub fly_path_idx: i16,
+    fly_path_idx: i16,
+    pub players: Vec<Player>,
     fog_value: u16,
     active_zone: u16,
 }
@@ -55,6 +58,7 @@ impl World {
             pieces_player: player,
             fly_path: Vec::new(),
             fly_path_idx: -1,
+            players: Vec::new(),
         }
     }
 
@@ -157,14 +161,32 @@ impl World {
         }
         pathmap
     }
+
+    pub fn tick(&mut self) {
+        if self.fly_path_idx < self.fly_path.len() as i16 {
+            self.fly_path_idx += 1;
+        } else {
+            // Not really every tick probably, but def not until
+            self.contract_fog();
+        }
+    }
+
+    pub fn players_by_score(&self) -> Vec<Player> {
+        let mut players = self.players.clone();
+        players.sort_by(|a, b| a.score.cmp(&b.score));
+        players
+    }
 }
 
-pub fn spawn(shape: Coord, nzones: u16) -> World {
+pub fn spawn(shape: Coord, nzones: u16, players: &Vec<String>) -> World {
     let mut world = World::new(shape);
     add_zones_rects(&mut world.zones, nzones);
     add_fog(&mut world.fog_curve, &world.zones);
     add_fly_path(&mut world.fly_path, world.zones.shape());
     world.active_zone = world.zones.max_val() + 1;
-
+    let mut namer = GameNamer::new();
+    for (idx, player) in players.iter().enumerate() {
+        world.players.push(Player::new(idx as u16, player.clone(), &mut namer))
+    }
     world
 }

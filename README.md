@@ -4,8 +4,8 @@
 
 ## Flypath
 
-- [ ] Generate
-- [ ] Step
+- [x] Generate
+- [x] Step
 - [ ] Autodrop
 
 ## Zones
