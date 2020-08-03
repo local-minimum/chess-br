@@ -33,7 +33,7 @@ pub struct World {
     pub pieces_types: Vec<Vec<Pieces>>,
     pub pieces_player: Vec<Vec<u16>>,
     pub fly_path: Vec<Coord>,
-    pub fly_path_idx: usize,
+    pub fly_path_idx: i16,
     fog_value: u16,
     active_zone: u16,
 }
@@ -54,7 +54,7 @@ impl World {
             pieces_types: pieces,
             pieces_player: player,
             fly_path: Vec::new(),
-            fly_path_idx: 0,
+            fly_path_idx: -1,
         }
     }
 
@@ -149,7 +149,7 @@ impl World {
         let mut pathmap = self.zones.new_with(0 as u16);
         for idx in 0..self.fly_path.len() {
             let coord = self.fly_path[idx];
-            if self.fly_path_idx == idx {
+            if self.fly_path_idx == idx as i16 {
                 pathmap[coord.y][coord.x] = 33;
             } else {
                 pathmap[coord.y][coord.x] = 1;
