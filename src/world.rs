@@ -1,4 +1,4 @@
-use crate::world::position::{Coord, Offset};
+use crate::world::position::{Coord, Offset, Positional};
 use crate::world::builders::{add_zones_rects, add_fog, add_fly_path};
 use crate::world::board::Board;
 use crate::world::pieces::Pieces;
@@ -138,7 +138,7 @@ impl World {
     pub fn request_action(&mut self, action: Action) {
         match action {
             Action::Drop(user) => {
-                if self.flying.contains(&user) {
+                if self.flying.contains(&user) && self.fly_path_idx >= 0 {
                     self.req_air_action.push(action);
                 }
             }
@@ -203,8 +203,12 @@ impl World {
             .filter(| e | match e { Action::Fly(_u, _off) => true, _ => false })
             .map(|e | e.clone())
             .collect();
+
         // Reset requests
         self.req_air_action.clear();
+
+        // Move those that falling
+        let shape = self.zones.shape();
         while let Some(action) = fly_actions.pop() {
             match action {
                 Action::Fly(user, off) => {
@@ -214,11 +218,16 @@ impl World {
                         itemidx = idx as i32;
                         break;
                     }
-
+                    if itemidx > -1 {
+                        let (uid, height, coord) = self.falling[itemidx as usize];
+                        let next_coord = coord.translate(off);
+                        if next_coord.is_inside(&shape) {
+                                self.falling[itemidx as usize] = (uid, height, next_coord);
+                        }
+                    }
                 },
                 _ => (),
             }
-
         }
 
         // Drop everyone that wants to
@@ -238,13 +247,33 @@ impl World {
             }
         }
 
-        self.req_air_action.clear()
+        // Lower fallings
+        let landers: Vec<(u16, u16, Coord)> = self.falling
+            .iter()
+            .filter(| (_uid, height, _coord) | *height == 1)
+            .map(| (uid, height, coord) | (*uid, *height, coord.clone()))
+            .collect();
+
+        self.falling = self.falling
+            .iter()
+            .filter(| (_uid, height, _coord) | *height > 1)
+            .map(| (uid, height, coord) | (*uid, *height - 1, coord.clone()))
+            .collect();
+
+        for (uid, _h, coord) in landers {
+            self.pieces_player[coord.y][coord.x] = uid;
+            self.pieces_types[coord.y][coord.x] = Pieces::King;
+        }
     }
 
     pub fn players_by_score(&self) -> Vec<Player> {
         let mut players = self.players.clone();
         players.sort_by(|a, b| a.score.cmp(&b.score));
         players
+    }
+
+    pub fn flyers_count(&self) -> usize {
+        self.flying.len()
     }
 }
 
@@ -256,8 +285,8 @@ pub fn spawn(shape: Coord, nzones: u16, players: &Vec<String>) -> World {
     world.active_zone = world.zones.max_val() + 1;
     let mut namer = GameNamer::new();
     for (idx, player) in players.iter().enumerate() {
-        world.players.push(Player::new(idx as u16, player.clone(), &mut namer));
-        world.flying.push(idx as u16);
+        world.players.push(Player::new(idx as u16 + 1, player.clone(), &mut namer));
+        world.flying.push(idx as u16 + 1);
     }
     world
 }

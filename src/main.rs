@@ -1,6 +1,5 @@
 use ::chess_br::world::spawn;
-use ::chess_br::world::World;
-use ::chess_br::world::FogState;
+use ::chess_br::world::{World, FogState, Action};
 use ::chess_br::world::position::Coord;
 use ::chess_br::world::display::{print_board, print_board_pair};
 
@@ -33,11 +32,17 @@ fn print_scores(world: &World) {
 }
 
 fn main() {
-    let world = spawn(
+    let mut world = spawn(
         Coord{x: 42, y: 16},
         4,
         &vec![String::from("Player 1"), String::from("Player 2")]
     );
+    println!("{} flyers", world.flyers_count());
+    world.do_tick();
+    world.do_tick();
+    world.request_action(Action::Drop(1));
+    world.do_tick();
+    println!("{} flyers", world.flyers_count());
     print_board_pair(&world.zones, &world.flypath_map());
     print_scores(&world);
     //play_fog(world, false, true);
