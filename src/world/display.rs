@@ -1,5 +1,7 @@
 use std::char;
 
+use crate::world::Coord;
+
 fn encode_ch(val: u16) -> String {
     if val > 9 {
     let c = char::from_u32((val + 55) as u32);
@@ -36,4 +38,17 @@ pub fn print_board_pair(first: &Vec<Vec<u16>>, second: &Vec<Vec<u16>>) {
             .collect::<String>();
         println!("{} {}", first_out, second_out);
     }
+}
+
+pub fn print_air(
+    shape: Coord, 
+    falling: &Vec<(u16, u16, Coord)>,
+    height: u16,
+) {
+    let mut lvl = vec![vec![0 as u16; shape.x]; shape.y];
+    for (uid, h, coord) in falling.iter() {
+        if *h != height { continue; }
+        lvl[coord.y][coord.x] = *uid;
+    }
+    print_board(&lvl);
 }

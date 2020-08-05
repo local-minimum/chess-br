@@ -33,7 +33,26 @@ pub struct Record {
     pub action: Action,
 }
 
+struct WorldSettings {
+    drop_height: u16,
+    zone_every: usize,
+    flyer_every: usize,
+    fly_start: i16,
+}
+
+impl WorldSettings {
+    fn new() -> WorldSettings {
+        WorldSettings{
+            fly_start: -5,
+            drop_height: 10,
+            zone_every: 10,
+            flyer_every: 2,
+        }
+    }
+}
+
 pub struct World {
+    settings: WorldSettings,
     pub zones: Vec<Vec<u16>>,
     pub fog_curve: Vec<Vec<u16>>,
     pub fog: Vec<Vec<u16>>,
@@ -45,7 +64,7 @@ pub struct World {
     fog_value: u16,
     active_zone: u16,
     flying: Vec<u16>,
-    falling: Vec<(u16, u16, Coord)>,
+    pub falling: Vec<(u16, u16, Coord)>,
     req_air_action: Vec<Action>,
     tick: usize,
     history: Vec<Record>,
@@ -58,7 +77,10 @@ impl World {
         let fog = zones.new_with(0);
         let player = zones.new_with(0);
         let pieces = zones.new_with(Pieces::Empty);
+        let settings = WorldSettings::new();
         World {
+            fly_path_idx: settings.fly_start,
+            settings,
             zones,
             fog_curve,
             fog,
@@ -67,7 +89,6 @@ impl World {
             pieces_types: pieces,
             pieces_player: player,
             fly_path: Vec::new(),
-            fly_path_idx: -1,
             players: Vec::new(),
             flying: Vec::new(),
             falling: Vec::new(),
@@ -178,7 +199,7 @@ impl World {
         for idx in 0..self.fly_path.len() {
             let coord = self.fly_path[idx];
             if self.fly_path_idx == idx as i16 {
-                pathmap[coord.y][coord.x] = 33;
+                pathmap[coord.y][coord.x] = 33; // X
             } else {
                 pathmap[coord.y][coord.x] = 1;
             }
@@ -187,12 +208,13 @@ impl World {
     }
 
     pub fn do_tick(&mut self) {
-        // Not really every tick probably
+        // Modify world
         if self.fly_path_idx < self.fly_path.len() as i16 {
-            self.fly_path_idx += 1;
+            if (self.tick % self.settings.flyer_every) == 0 { self.fly_path_idx += 1; }
         } else {
-            self.contract_fog();
+            if (self.tick % self.settings.zone_every) == 0 { self.contract_fog(); }
         }
+
         let mut drop_actions: Vec<Action> = self.req_air_action
             .iter()
             .filter(| e | match e { Action::Drop(_u) => true, _ => false })
@@ -222,7 +244,10 @@ impl World {
                         let (uid, height, coord) = self.falling[itemidx as usize];
                         let next_coord = coord.translate(off);
                         if next_coord.is_inside(&shape) {
-                                self.falling[itemidx as usize] = (uid, height, next_coord);
+                            self.falling[itemidx as usize] = (uid, height, next_coord);
+                            self.history.push(
+                                Record{player: user, tick: self.tick, action: action}
+                            );
                         }
                     }
                 },
@@ -231,19 +256,21 @@ impl World {
         }
 
         // Drop everyone that wants to
-        let flyer = self.fly_path[self.fly_path_idx as usize];
-        while let Some(action) = drop_actions.pop() {
-            match action {
-                Action::Drop(user) => {
-                    if self.flying.contains(&user) {
-                        self.flying.retain(|a| *a != user);
-                        self.falling.push((user, 10, flyer.clone()));
-                        self.history.push(
-                            Record{player: user, tick: self.tick, action: action}
-                        );
+        if self.fly_path_idx >= 0 {
+            let flyer = self.fly_path[self.fly_path_idx as usize];
+            while let Some(action) = drop_actions.pop() {
+                match action {
+                    Action::Drop(user) => {
+                        if self.flying.contains(&user) {
+                            self.flying.retain(|a| *a != user);
+                            self.falling.push((user, self.settings.drop_height, flyer.clone()));
+                            self.history.push(
+                                Record{player: user, tick: self.tick, action: action}
+                            );
+                        }
                     }
+                    _ => (),
                 }
-                _ => (),
             }
         }
 
@@ -264,6 +291,8 @@ impl World {
             self.pieces_player[coord.y][coord.x] = uid;
             self.pieces_types[coord.y][coord.x] = Pieces::King;
         }
+
+        self.tick += 1;
     }
 
     pub fn players_by_score(&self) -> Vec<Player> {
