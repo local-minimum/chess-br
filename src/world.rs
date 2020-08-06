@@ -50,7 +50,7 @@ impl WorldSettings {
             drop_height: 10,
             zone_every: 10,
             zone_rest: 42,
-            flyer_every: 2,
+            flyer_every: 1,
         }
     }
 }
@@ -271,8 +271,24 @@ impl World {
             }
         }
 
-        // Drop everyone that wants to
-        if self.fly_path_idx >= 0 {
+        let last_fly_idx = self.fly_path.len() as i16 - 1;
+        if self.fly_path_idx == last_fly_idx {
+            // Force Drop
+            let flyer = self.fly_path[self.fly_path_idx as usize];
+            for uid in self.flying.iter() {
+                self.falling.push((*uid, self.settings.drop_height, flyer.clone()));
+                self.history.push(
+                    Record{
+                        player: *uid,
+                        tick: self.tick,
+                        piece: Pieces::King,
+                        event: format!("Drop -> {:?}:{}", flyer, self.settings.drop_height),
+                    }
+                );
+            }
+            self.flying.clear();
+        } else if self.fly_path_idx >= 0 && self.fly_path_idx < last_fly_idx {
+            // Drop everyone that wants to
             let flyer = self.fly_path[self.fly_path_idx as usize];
             while let Some(action) = drop_actions.pop() {
                 match action {
@@ -343,6 +359,10 @@ impl World {
 
     pub fn flyers_count(&self) -> usize {
         self.flying.len()
+    }
+
+    pub fn falling_count(&self) -> usize {
+        self.falling.len()
     }
 }
 

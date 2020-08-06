@@ -56,7 +56,10 @@ fn main() {
         println!("{}, {}, {:?}", uid, h, coord.clone());
     }
     println!("{} flyers", world.flyers_count());
-    print_board_pair(&world.zones, &world.flypath_map());
+    while world.falling_count() > 0 {
+        world.do_tick()
+    }
+    print_board_pair(&world.pieces_player, &world.flypath_map());
     print_scores(&world);
     //play_fog(world, false, true);
 }
