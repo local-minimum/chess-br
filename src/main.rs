@@ -1,9 +1,10 @@
 use ::chess_br::world::spawn;
-use ::chess_br::world::{World, FogState, Action};
+use ::chess_br::world::{World, Action};
 use ::chess_br::world::position::{Coord, Offset};
 use ::chess_br::world::board::Board;
-use ::chess_br::world::display::{print_board, print_board_pair, print_air};
+use ::chess_br::world::display::{print_board_pair, print_air};
 
+/*
 fn play_fog(mut world: World, print_fog: bool, print_next_zone: bool) {
     let mut fog_type = FogState::Contracting;
     loop {
@@ -24,6 +25,7 @@ fn play_fog(mut world: World, print_fog: bool, print_next_zone: bool) {
     println!("\n** {} {:?}", world.status(), fog_type);
     print_board(&world.fog);
 }
+*/
 
 fn print_scores(world: &World) {
     for (idx, player) in world.players_by_score().iter().enumerate() {

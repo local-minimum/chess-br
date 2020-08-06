@@ -6,7 +6,7 @@
 
 - [x] Generate
 - [x] Step
-- [ ] Autodrop
+- [x] Autodrop
 
 ## Zones
 
@@ -26,16 +26,18 @@ Doesn't depend on shapes but given game length of N ticks.
 
 ### Drop
 
-- [ ] Release from path position at altitude
+- [x] Release from path position at altitude
 
 ### Fly
 
-- [ ] Translate and decrease altitude
+- [x] Translate and decrease altitude
+- [ ] Resolve legal / safe landing
+- [ ] Push apart while in air?
 
 ### Move
 
 - [x] Basic valid piece moves
-- [ ] En passant (requires piece knowing last move)
+- [ ] En passant (requires piece knowing last move, orthogonal en passant?)
 - [ ] Limit pawn to one direction (requires piece knowing last move)
 - [ ] Allow pawn first move two steps (requires piece knowing last move)
 - [ ] Allow promotion (requires pawn know traversed distance)

@@ -69,8 +69,10 @@ pub struct World {
     fog_value: u16,
     active_zone: u16,    
     flying: Vec<u16>,
+    boarded: Vec<u16>,
     pub falling: Vec<(u16, u16, Coord)>,
     req_air_action: Vec<Action>,
+    req_board_action: Vec<Action>,    
     tick: usize,
     history: Vec<Record>,
 }
@@ -98,7 +100,9 @@ impl World {
             players: Vec::new(),
             flying: Vec::new(),
             falling: Vec::new(),
+            boarded: Vec::new(),
             req_air_action: Vec::new(),
+            req_board_action: Vec::new(),
             tick: 0,
             history: Vec::new(),
         }
@@ -179,11 +183,30 @@ impl World {
                     self.req_air_action.push(action);
                 }
             }
-            _ => ()
+            Action::Move(user, _from, _to) => {
+                if self.boarded.contains(&user) {
+                    self.req_board_action.retain(|a| match a {
+                        Action::Move(uid, _from, _to) => return *uid != user,
+                        _ => return true
+                    });
+                }
+                self.req_board_action.push(action);
+            }
+            Action::None(user) => {
+                self.req_air_action.retain(|a | match a {
+                    Action::Drop(uid) => return *uid == user,
+                    Action::Fly(uid, _off) => return *uid == user,
+                    _ => return true,
+                });
+                self.req_board_action.retain(|a | match a {
+                    Action::Move(uid, _from, _to) => return *uid == user,
+                    _ => return true,
+                });
+            }
         }
     }
 
-    pub fn do_move(&mut self, action: Action) {
+    pub fn do_board_move(&mut self, action: Action) {
         match action {
             Action::Move(user, from, to) => {
                 if self.pieces_player[from.y][from.x] != user { return; }
@@ -205,42 +228,7 @@ impl World {
         }
     }
 
-    pub fn flypath_map(&self) -> Vec<Vec<u16>> {
-        let mut pathmap = self.zones.new_with(0 as u16);
-        for idx in 0..self.fly_path.len() {
-            let coord = self.fly_path[idx];
-            if self.fly_path_idx == idx as i16 {
-                pathmap[coord.y][coord.x] = 33; // X
-            } else {
-                pathmap[coord.y][coord.x] = 1;
-            }
-        }
-        pathmap
-    }
-
-    pub fn do_tick(&mut self) {
-        // Modify world
-        if self.fly_path_idx < self.fly_path.len() as i16 {
-            if (self.tick % self.settings.flyer_every) == 0 { self.fly_path_idx += 1; }
-        } else {
-            if (self.tick % self.settings.zone_every) == 0 { self.contract_fog(); }
-        }
-
-        let mut drop_actions: Vec<Action> = self.req_air_action
-            .iter()
-            .filter(| e | match e { Action::Drop(_u) => true, _ => false })
-            .map(|e | e.clone())
-            .collect();
-        let mut fly_actions: Vec<Action> = self.req_air_action
-            .iter()
-            .filter(| e | match e { Action::Fly(_u, _off) => true, _ => false })
-            .map(|e | e.clone())
-            .collect();
-
-        // Reset requests
-        self.req_air_action.clear();
-
-        // Move those that falling
+    fn do_move_falling(&mut self, mut fly_actions: Vec<Action>) {
         let shape = self.zones.shape();
         while let Some(action) = fly_actions.pop() {
             match action {
@@ -270,7 +258,9 @@ impl World {
                 _ => (),
             }
         }
+    }
 
+    fn do_drop(&mut self, mut drop_actions: Vec<Action>) {
         let last_fly_idx = self.fly_path.len() as i16 - 1;
         if self.fly_path_idx == last_fly_idx {
             // Force Drop
@@ -310,8 +300,9 @@ impl World {
                 }
             }
         }
+    }
 
-        // Lower fallings
+    fn do_lower_falling(&mut self) {
         let landers: Vec<(u16, u16, Coord)> = self.falling
             .iter()
             .filter(| (_uid, height, _coord) | *height == 1)
@@ -345,10 +336,52 @@ impl World {
                     tick: self.tick,
                     event: format!("Land -> {:?}", coord),
                 }
-            )
+            );
+            self.boarded.push(uid);
         }
 
+    }
+
+    pub fn do_tick(&mut self) {
+        // Modify world
+        if self.fly_path_idx < self.fly_path.len() as i16 {
+            if (self.tick % self.settings.flyer_every) == 0 { self.fly_path_idx += 1; }
+        } else {
+            if (self.tick % self.settings.zone_every) == 0 { self.contract_fog(); }
+        }
+
+        // Copy concurrent actions
+        let drop_actions: Vec<Action> = self.req_air_action
+            .iter()
+            .filter(| e | match e { Action::Drop(_u) => true, _ => false })
+            .map(|e | e.clone())
+            .collect();
+        let fly_actions: Vec<Action> = self.req_air_action
+            .iter()
+            .filter(| e | match e { Action::Fly(_u, _off) => true, _ => false })
+            .map(|e | e.clone())
+            .collect();
+        // Reset concurrent action requests
+        self.req_air_action.clear();
+
+        self.do_move_falling(fly_actions);
+        self.do_lower_falling();
+        self.do_drop(drop_actions);
+
         self.tick += 1;
+    }
+
+    pub fn flypath_map(&self) -> Vec<Vec<u16>> {
+        let mut pathmap = self.zones.new_with(0 as u16);
+        for idx in 0..self.fly_path.len() {
+            let coord = self.fly_path[idx];
+            if self.fly_path_idx == idx as i16 {
+                pathmap[coord.y][coord.x] = 33; // X
+            } else {
+                pathmap[coord.y][coord.x] = 1;
+            }
+        }
+        pathmap
     }
 
     pub fn players_by_score(&self) -> Vec<Player> {
