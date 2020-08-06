@@ -14,6 +14,7 @@ pub mod player;
 
 #[derive(Debug)]
 pub enum FogState {
+    Resting,
     Contracting,
     Zone,
     Done,
@@ -30,12 +31,14 @@ pub enum Action {
 pub struct Record {
     pub player: u16,
     pub tick: usize,
-    pub action: Action,
+    pub piece: Pieces,
+    pub event: String,
 }
 
 struct WorldSettings {
     drop_height: u16,
     zone_every: usize,
+    zone_rest: usize,
     flyer_every: usize,
     fly_start: i16,
 }
@@ -46,6 +49,7 @@ impl WorldSettings {
             fly_start: -5,
             drop_height: 10,
             zone_every: 10,
+            zone_rest: 42,
             flyer_every: 2,
         }
     }
@@ -61,8 +65,9 @@ pub struct World {
     pub fly_path: Vec<Coord>,
     fly_path_idx: i16,
     players: Vec<Player>,
+    zone_rest: usize,
     fog_value: u16,
-    active_zone: u16,
+    active_zone: u16,    
     flying: Vec<u16>,
     pub falling: Vec<(u16, u16, Coord)>,
     req_air_action: Vec<Action>,
@@ -80,6 +85,7 @@ impl World {
         let settings = WorldSettings::new();
         World {
             fly_path_idx: settings.fly_start,
+            zone_rest: settings.zone_rest,
             settings,
             zones,
             fog_curve,
@@ -99,6 +105,10 @@ impl World {
     }
 
     pub fn contract_fog(&mut self) -> FogState {
+        if self.zone_rest > 0 {
+            self.zone_rest -= 1;
+            return FogState::Resting;
+        }
         if self.fog_value == 0 {
             if self.active_zone == 0 {
                 return FogState::Done;
@@ -111,6 +121,7 @@ impl World {
                 if self.active_zone == 1 {
                     return FogState::Done;
                 }
+                self.zone_rest = self.settings.zone_rest;
                 return FogState::Zone;
             }
         }
@@ -246,7 +257,12 @@ impl World {
                         if next_coord.is_inside(&shape) {
                             self.falling[itemidx as usize] = (uid, height, next_coord);
                             self.history.push(
-                                Record{player: user, tick: self.tick, action: action}
+                                Record{
+                                    player: user,
+                                    tick: self.tick,
+                                    piece: Pieces::King,
+                                    event: format!("Fly -> {:?}", next_coord),
+                                }
                             );
                         }
                     }
@@ -265,7 +281,12 @@ impl World {
                             self.flying.retain(|a| *a != user);
                             self.falling.push((user, self.settings.drop_height, flyer.clone()));
                             self.history.push(
-                                Record{player: user, tick: self.tick, action: action}
+                                Record{
+                                    player: user,
+                                    tick: self.tick,
+                                    piece: Pieces::King,
+                                    event: format!("Drop -> {:?}:{}", flyer, self.settings.drop_height),
+                                }
                             );
                         }
                     }
@@ -287,9 +308,28 @@ impl World {
             .map(| (uid, height, coord) | (*uid, *height - 1, coord.clone()))
             .collect();
 
+        for (uid, h, coord) in self.falling.iter() {
+            self.history.push(
+                Record{
+                    player: *uid,
+                    piece: Pieces::King,
+                    tick: self.tick,
+                    event: format!("Fall -> {:?}:{}", *coord, *h), 
+                }
+            )
+        }
+
         for (uid, _h, coord) in landers {
             self.pieces_player[coord.y][coord.x] = uid;
             self.pieces_types[coord.y][coord.x] = Pieces::King;
+            self.history.push(
+                Record{
+                    player: uid,
+                    piece: Pieces::King,
+                    tick: self.tick,
+                    event: format!("Land -> {:?}", coord),
+                }
+            )
         }
 
         self.tick += 1;

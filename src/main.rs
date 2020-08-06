@@ -43,12 +43,14 @@ fn main() {
         world.do_tick();
         world.do_tick();
     }
-    print_air(world.zones.shape(), &world.falling, 9);
     world.request_action(Action::Drop(1));
     world.do_tick();
     print_air(world.zones.shape(), &world.falling, 9);
     world.request_action(Action::Fly(1, Offset{x: -1, y: 0}));
+    world.request_action(Action::Drop(2));
     world.do_tick();
+
+    print_air(world.zones.shape(), &world.falling, 9);
     print_air(world.zones.shape(), &world.falling, 8);
     for (uid, h, coord) in world.falling.iter() {
         println!("{}, {}, {:?}", uid, h, coord.clone());
