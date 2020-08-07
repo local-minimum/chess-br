@@ -22,7 +22,7 @@ Doesn't depend on shapes but given game length of N ticks.
 
 ## Actions
 
-- [ ] Record history as text
+- [x] Record history as text
 
 ### Drop
 

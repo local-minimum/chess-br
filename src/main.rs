@@ -1,6 +1,7 @@
 use ::chess_br::world::spawn;
 use ::chess_br::world::{World, Action};
-use ::chess_br::world::position::{Coord, Offset};
+use ::chess_br::world::direction::Direction;
+use ::chess_br::world::position::{Coord, Positional, Offset};
 use ::chess_br::world::board::Board;
 use ::chess_br::world::display::{print_board_pair, print_air};
 
@@ -61,7 +62,16 @@ fn main() {
     while world.falling_count() > 0 {
         world.do_tick()
     }
+    let p2 = world.player_positions(2);
     print_board_pair(&world.pieces_player, &world.flypath_map());
     print_scores(&world);
+    println!("{:?}", p2);
+    let king = p2[0];
+    let to = king.1.translate_direction(Direction::North);
+
+    world.request_action(Action::Move(2, p2[0].1.clone(), to));
+    world.do_tick();
+    println!("{:?}", world.player_positions(2));
+    print_board_pair(&world.pieces_player, &world.flypath_map());
     //play_fog(world, false, true);
 }

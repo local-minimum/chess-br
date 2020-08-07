@@ -67,12 +67,12 @@ pub struct World {
     players: Vec<Player>,
     zone_rest: usize,
     fog_value: u16,
-    active_zone: u16,    
+    active_zone: u16,
     flying: Vec<u16>,
     boarded: Vec<u16>,
     pub falling: Vec<(u16, u16, Coord)>,
     req_air_action: Vec<Action>,
-    req_board_action: Vec<Action>,    
+    req_board_action: Vec<Action>,
     tick: usize,
     history: Vec<Record>,
 }
@@ -321,7 +321,7 @@ impl World {
                     player: *uid,
                     piece: Pieces::King,
                     tick: self.tick,
-                    event: format!("Fall -> {:?}:{}", *coord, *h), 
+                    event: format!("Fall -> {:?}:{}", *coord, *h),
                 }
             )
         }
@@ -368,6 +368,11 @@ impl World {
         self.do_lower_falling();
         self.do_drop(drop_actions);
 
+        let action = self.req_board_action.pop();
+        match action {
+            Some(action) => self.do_board_move(action),
+            _ => ()
+        }
         self.tick += 1;
     }
 
@@ -388,6 +393,19 @@ impl World {
         let mut players = self.players.clone();
         players.sort_by(|a, b| a.score.cmp(&b.score));
         players
+    }
+
+    pub fn player_positions(&self, user: u16) -> Vec<(Pieces, Coord)> {
+        let mut pos = Vec::new();
+        let shape = self.pieces_player.shape();
+        for idy in 0..shape.y {
+            for idx in 0..shape.x {
+                if self.pieces_player[idy][idx] == user {
+                    pos.push((self.pieces_types[idy][idx].clone(), Coord{x: idx, y: idy}));
+                }
+            }
+        }
+        return pos
     }
 
     pub fn flyers_count(&self) -> usize {
