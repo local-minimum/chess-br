@@ -35,7 +35,7 @@ Doesn't depend on shapes but given game length of N ticks.
 - [ ] Push apart while in air?
 
 ### Move
-
+- [ ] Take
 - [x] Basic valid piece moves
 - [ ] En passant (requires piece knowing last move, orthogonal en passant?)
 - [ ] Limit pawn to one direction (requires piece knowing last move)

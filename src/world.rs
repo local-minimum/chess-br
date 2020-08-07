@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use crate::world::position::{Coord, Offset, Positional};
 use crate::world::builders::{add_zones_rects, add_fog, add_fly_path};
 use crate::world::board::Board;
-use crate::world::pieces::Pieces;
+use crate::world::pieces::{Piece, PieceType};
 use crate::world::player::{Player, GamerNamer};
 use crate::world::fog::Fog;
 
@@ -26,7 +28,7 @@ pub enum Action {
 pub struct Record {
     pub player: u16,
     pub tick: usize,
-    pub piece: Pieces,
+    pub piece: PieceType,
     pub event: String,
 }
 
@@ -53,8 +55,8 @@ impl WorldSettings {
 pub struct World {
     settings: WorldSettings,
     pub fog: Fog,
-    pub pieces_types: Vec<Vec<Pieces>>,
-    pub pieces_player: Vec<Vec<u16>>,
+    pub pieces: HashMap<u16, Piece>,
+    pub pieces_map: Vec<Vec<u16>>,
     pub fly_path: Vec<Coord>,
     fly_path_idx: i16,
     players: Vec<Player>,
@@ -70,15 +72,14 @@ pub struct World {
 impl World {
     fn new(shape: Coord) -> Self {
         let fog = Fog::new(shape);
-        let player = fog.zones.new_with(0);
-        let pieces = fog.zones.new_with(Pieces::Empty);
+        let pieces = fog.zones.new_with(0);
         let settings = WorldSettings::new();
         World {
             fog,
             fly_path_idx: settings.fly_start,
             settings,
-            pieces_types: pieces,
-            pieces_player: player,
+            pieces: HashMap::new(),
+            pieces_map: pieces,
             fly_path: Vec::new(),
             players: Vec::new(),
             flying: Vec::new(),
@@ -89,16 +90,6 @@ impl World {
             tick: 0,
             history: Vec::new(),
         }
-    }
-
-    fn has_piece_on_path(&self, steps: Vec<Coord>) -> bool {
-        for step in steps {
-            match self.pieces_types[step.y][step.x] {
-                Pieces::Empty => { return true; },
-                _ => (),
-            }
-        }
-        false
     }
 
     pub fn request_action(&mut self, action: Action) {
@@ -139,19 +130,29 @@ impl World {
     pub fn do_board_move(&mut self, action: Action) {
         match action {
             Action::Move(user, from, to) => {
-                if self.pieces_player[from.y][from.x] != user { return; }
-                let piece = self.pieces_types[from.y][from.x];
-                match piece.steps(from, to) {
-                    None => (),
-                    Some(steps) => {
-                        if self.has_piece_on_path(steps) { return; }
+                let piece_id = self.pieces_map[from.y][from.x];
+                if piece_id == 0 { return; }
+                match self.pieces.get_mut(&piece_id) {
+                    Some(piece) => {
+                        if piece.player != user { return; }
+                        match piece.kind.intermediat_steps(from, to) {
+                            None => (),
+                            Some(steps) => {
+                                for step in steps {
+                                    if self.pieces_map[step.y][step.x] > 0 {
+                                        return ;
+                                    }
+                                }
+                                // Taking
+                                // Moving
+                                piece.place(&to);
+                                self.pieces_map[to.y][to.x] = piece_id;
+                                self.pieces_map[from.y][from.x] = 0;
+                            }
+                        }
 
-                        // Moving
-                        self.pieces_types[to.y][to.x] = self.pieces_types[from.y][from.x];
-                        self.pieces_player[to.y][to.x] = self.pieces_player[from.y][from.x];
-                        self.pieces_types[from.y][from.x] = Pieces::Empty;
-                        self.pieces_player[from.y][from.x] = 0;
                     }
+                    _ => (),
                 }
             },
             _ => ()
@@ -178,7 +179,7 @@ impl World {
                                 Record{
                                     player: user,
                                     tick: self.tick,
-                                    piece: Pieces::King,
+                                    piece: PieceType::King,
                                     event: format!("Fly -> {:?}", next_coord),
                                 }
                             );
@@ -201,7 +202,7 @@ impl World {
                     Record{
                         player: *uid,
                         tick: self.tick,
-                        piece: Pieces::King,
+                        piece: PieceType::King,
                         event: format!("Drop -> {:?}:{}", flyer, self.settings.drop_height),
                     }
                 );
@@ -220,7 +221,7 @@ impl World {
                                 Record{
                                     player: user,
                                     tick: self.tick,
-                                    piece: Pieces::King,
+                                    piece: PieceType::King,
                                     event: format!("Drop -> {:?}:{}", flyer, self.settings.drop_height),
                                 }
                             );
@@ -249,7 +250,7 @@ impl World {
             self.history.push(
                 Record{
                     player: *uid,
-                    piece: Pieces::King,
+                    piece: PieceType::King,
                     tick: self.tick,
                     event: format!("Fall -> {:?}:{}", *coord, *h),
                 }
@@ -257,12 +258,15 @@ impl World {
         }
 
         for (uid, _h, coord) in landers {
-            self.pieces_player[coord.y][coord.x] = uid;
-            self.pieces_types[coord.y][coord.x] = Pieces::King;
+            let mut piece = Piece::new(PieceType::King, uid);
+            piece.place(&coord);
+            let piece_id = self.pieces_map.max_val() + 1;
+            self.pieces_map[coord.y][coord.x] = piece_id;
+            self.pieces.insert(piece_id, piece);
             self.history.push(
                 Record{
                     player: uid,
-                    piece: Pieces::King,
+                    piece: PieceType::King,
                     tick: self.tick,
                     event: format!("Land -> {:?}", coord),
                 }
@@ -325,13 +329,15 @@ impl World {
         players
     }
 
-    pub fn player_positions(&self, user: u16) -> Vec<(Pieces, Coord)> {
+    pub fn player_positions(&self, user: u16) -> Vec<(PieceType, Coord)> {
         let mut pos = Vec::new();
-        let shape = self.pieces_player.shape();
-        for idy in 0..shape.y {
-            for idx in 0..shape.x {
-                if self.pieces_player[idy][idx] == user {
-                    pos.push((self.pieces_types[idy][idx].clone(), Coord{x: idx, y: idy}));
+        for piece in self.pieces.values() {
+            if piece.player == user {
+                match piece.position() {
+                    Some(coord) => {
+                        pos.push((piece.kind, coord.clone()))
+                    }
+                    _ => (),
                 }
             }
         }
