@@ -2,7 +2,7 @@ use crate::world::position::{Coord, Offset, Positional};
 use crate::world::builders::{add_zones_rects, add_fog, add_fly_path};
 use crate::world::board::Board;
 use crate::world::pieces::Pieces;
-use crate::world::player::{Player, GameNamer};
+use crate::world::player::{Player, GamerNamer};
 use crate::world::fog::Fog;
 
 pub mod board;
@@ -351,7 +351,7 @@ pub fn spawn(shape: Coord, nzones: u16, players: &Vec<String>) -> World {
     let mut world = World::new(shape);
     world.fog.init(nzones, add_zones_rects, add_fog);
     add_fly_path(&mut world.fly_path, world.fog.shape());
-    let mut namer = GameNamer::new();
+    let mut namer = GamerNamer::new();
     for (idx, player) in players.iter().enumerate() {
         world.players.push(Player::new(idx as u16 + 1, player.clone(), &mut namer));
         world.flying.push(idx as u16 + 1);

@@ -9,7 +9,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(game_id: u16, user_name: String, namer: &mut GameNamer) -> Player {
+    pub fn new(game_id: u16, user_name: String, namer: &mut GamerNamer) -> Player {
         Player{
             game_id,
             game_name: namer.next(),
@@ -39,21 +39,21 @@ const GAME_NAME_NOUN: &'static [&'static str] = &[
     "Storm", "Skewer",
 ];
 
-pub struct GameNamer {
+pub struct GamerNamer {
     adj_idxs: Vec<usize>,
     noun_idxs: Vec<usize>,
     adj_idx: usize,
     noun_idx: usize,
 }
 
-impl GameNamer {
+impl GamerNamer {
     pub fn new() -> Self {
         let mut rng = rand::thread_rng();
         let mut adj_idxs: Vec<usize> = (0..GAME_NAME_ADJ.len()).collect();
         adj_idxs.shuffle(&mut rng);
         let mut noun_idxs: Vec<usize> = (0..GAME_NAME_NOUN.len()).collect();
         noun_idxs.shuffle(&mut rng);
-        GameNamer{
+        GamerNamer{
             adj_idxs,
             noun_idxs,
             adj_idx: 0,
