@@ -2,7 +2,6 @@ use ::chess_br::world::spawn;
 use ::chess_br::world::{World, Action};
 use ::chess_br::world::direction::Direction;
 use ::chess_br::world::position::{Coord, Positional, Offset};
-use ::chess_br::world::board::Board;
 use ::chess_br::world::display::{print_board_pair, print_air};
 
 /*
@@ -48,13 +47,13 @@ fn main() {
     }
     world.request_action(Action::Drop(1));
     world.do_tick();
-    print_air(world.zones.shape(), &world.falling, 9);
+    print_air(world.fog.shape(), &world.falling, 9);
     world.request_action(Action::Fly(1, Offset{x: -1, y: 0}));
     world.request_action(Action::Drop(2));
     world.do_tick();
 
-    print_air(world.zones.shape(), &world.falling, 9);
-    print_air(world.zones.shape(), &world.falling, 8);
+    print_air(world.fog.shape(), &world.falling, 9);
+    print_air(world.fog.shape(), &world.falling, 8);
     for (uid, h, coord) in world.falling.iter() {
         println!("{}, {}, {:?}", uid, h, coord.clone());
     }
@@ -72,6 +71,6 @@ fn main() {
     world.request_action(Action::Move(2, p2[0].1.clone(), to));
     world.do_tick();
     println!("{:?}", world.player_positions(2));
-    print_board_pair(&world.pieces_player, &world.flypath_map());
+    print_board_pair(&world.pieces_player, &world.fog.zones);
     //play_fog(world, false, true);
 }

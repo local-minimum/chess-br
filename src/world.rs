@@ -3,6 +3,7 @@ use crate::world::builders::{add_zones_rects, add_fog, add_fly_path};
 use crate::world::board::Board;
 use crate::world::pieces::Pieces;
 use crate::world::player::{Player, GameNamer};
+use crate::world::fog::Fog;
 
 pub mod board;
 pub mod builders;
@@ -11,14 +12,8 @@ pub mod position;
 pub mod pieces;
 pub mod direction;
 pub mod player;
+pub mod fog;
 
-#[derive(Debug)]
-pub enum FogState {
-    Resting,
-    Contracting,
-    Zone,
-    Done,
-}
 
 #[derive(Debug, Copy, Clone)]
 pub enum Action {
@@ -57,17 +52,12 @@ impl WorldSettings {
 
 pub struct World {
     settings: WorldSettings,
-    pub zones: Vec<Vec<u16>>,
-    pub fog_curve: Vec<Vec<u16>>,
-    pub fog: Vec<Vec<u16>>,
+    pub fog: Fog,
     pub pieces_types: Vec<Vec<Pieces>>,
     pub pieces_player: Vec<Vec<u16>>,
     pub fly_path: Vec<Coord>,
     fly_path_idx: i16,
     players: Vec<Player>,
-    zone_rest: usize,
-    fog_value: u16,
-    active_zone: u16,
     flying: Vec<u16>,
     boarded: Vec<u16>,
     pub falling: Vec<(u16, u16, Coord)>,
@@ -79,21 +69,14 @@ pub struct World {
 
 impl World {
     fn new(shape: Coord) -> Self {
-        let zones = vec![vec![0; shape.x]; shape.y];
-        let fog_curve = zones.new_with(0);
-        let fog = zones.new_with(0);
-        let player = zones.new_with(0);
-        let pieces = zones.new_with(Pieces::Empty);
+        let fog = Fog::new(shape);
+        let player = fog.zones.new_with(0);
+        let pieces = fog.zones.new_with(Pieces::Empty);
         let settings = WorldSettings::new();
         World {
-            fly_path_idx: settings.fly_start,
-            zone_rest: settings.zone_rest,
-            settings,
-            zones,
-            fog_curve,
             fog,
-            fog_value: 0,
-            active_zone: 0,
+            fly_path_idx: settings.fly_start,
+            settings,
             pieces_types: pieces,
             pieces_player: player,
             fly_path: Vec::new(),
@@ -106,59 +89,6 @@ impl World {
             tick: 0,
             history: Vec::new(),
         }
-    }
-
-    pub fn contract_fog(&mut self) -> FogState {
-        if self.zone_rest > 0 {
-            self.zone_rest -= 1;
-            return FogState::Resting;
-        }
-        if self.fog_value == 0 {
-            if self.active_zone == 0 {
-                return FogState::Done;
-            }
-            self.active_zone -= 1;
-            self.fog_value = self.fog_curve.max_when(&self.zones, self.active_zone);
-        } else {
-            self.fog_value -= 1;
-            if self.fog_value == 0 {
-                if self.active_zone == 1 {
-                    return FogState::Done;
-                }
-                self.zone_rest = self.settings.zone_rest;
-                return FogState::Zone;
-            }
-        }
-        let this_fog_curve = self.fog_curve
-            .new_when(&self.zones, self.active_zone, 0);
-
-        self.fog.apply_when(1, &this_fog_curve, self.fog_value);
-        FogState::Contracting
-    }
-
-    pub fn status(&self) -> String {
-        format!("Zone {} / step {}", self.active_zone, self.fog_value)
-    }
-
-    pub fn next_zone(&self, edge_only: bool) -> Vec<Vec<u16>> {
-        let mut ret = self.zones.new_with(0 as u16);
-        if self.active_zone < 2 {
-            return ret;
-        }
-
-        let mut inner: Vec<Coord> = vec![];
-        let coords = self.zones.coords_of_lambda(&(|val| val < self.active_zone));
-        ret.apply(&coords, 1);
-        if edge_only {
-            for coord in coords.iter() {
-                if !ret.neighbour_has_lambda(coord, true, &(|own, neigh| own == 1 && neigh == 0)) {
-                    inner.push(Coord{x: coord.x, y: coord.y});
-                }
-            }
-            ret.apply(&inner, 0);
-        }
-
-        ret
     }
 
     fn has_piece_on_path(&self, steps: Vec<Coord>) -> bool {
@@ -229,7 +159,7 @@ impl World {
     }
 
     fn do_move_falling(&mut self, mut fly_actions: Vec<Action>) {
-        let shape = self.zones.shape();
+        let shape = self.fog.shape();
         while let Some(action) = fly_actions.pop() {
             match action {
                 Action::Fly(user, off) => {
@@ -347,7 +277,7 @@ impl World {
         if self.fly_path_idx < self.fly_path.len() as i16 {
             if (self.tick % self.settings.flyer_every) == 0 { self.fly_path_idx += 1; }
         } else {
-            if (self.tick % self.settings.zone_every) == 0 { self.contract_fog(); }
+            if (self.tick % self.settings.zone_every) == 0 { self.fog.contract(self.settings.zone_rest); }
         }
 
         // Copy concurrent actions
@@ -377,7 +307,7 @@ impl World {
     }
 
     pub fn flypath_map(&self) -> Vec<Vec<u16>> {
-        let mut pathmap = self.zones.new_with(0 as u16);
+        let mut pathmap = self.fog.zones.new_with(0 as u16);
         for idx in 0..self.fly_path.len() {
             let coord = self.fly_path[idx];
             if self.fly_path_idx == idx as i16 {
@@ -419,10 +349,8 @@ impl World {
 
 pub fn spawn(shape: Coord, nzones: u16, players: &Vec<String>) -> World {
     let mut world = World::new(shape);
-    add_zones_rects(&mut world.zones, nzones);
-    add_fog(&mut world.fog_curve, &world.zones);
-    add_fly_path(&mut world.fly_path, world.zones.shape());
-    world.active_zone = world.zones.max_val() + 1;
+    world.fog.init(nzones, add_zones_rects, add_fog);
+    add_fly_path(&mut world.fly_path, world.fog.shape());
     let mut namer = GameNamer::new();
     for (idx, player) in players.iter().enumerate() {
         world.players.push(Player::new(idx as u16 + 1, player.clone(), &mut namer));
