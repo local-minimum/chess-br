@@ -62,7 +62,7 @@ fn main() {
         world.do_tick()
     }
     let p2 = world.player_positions(2);
-    print_board_pair(&world.pieces_map, &world.flypath_map());
+    print_board_pair(&world.pieces_map, &world.flyer.as_map());
     print_scores(&world);
     println!("{:?}", p2);
     let king = p2[0];
