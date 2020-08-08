@@ -7,6 +7,7 @@ use crate::world::pieces::{Piece, PieceType};
 use crate::world::player::{Player, PlayerState, GamerNamer};
 use crate::world::fog::Fog;
 use crate::world::flyer::Flyer;
+use crate::world::historian::Historian;
 
 pub mod board;
 pub mod builders;
@@ -17,6 +18,7 @@ pub mod direction;
 pub mod player;
 pub mod fog;
 pub mod flyer;
+pub mod historian;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Action {
@@ -26,19 +28,13 @@ pub enum Action {
     Move(u16, Coord, Coord),
 }
 
-pub struct Record {
-    pub player: u16,
-    pub tick: usize,
-    pub piece: PieceType,
-    pub event: String,
-}
-
 struct WorldSettings {
     drop_height: u16,
     zone_every: usize,
     zone_rest: usize,
     flyer_every: usize,
     fly_start: i16,
+    verbose: bool,
 }
 
 impl WorldSettings {
@@ -49,6 +45,7 @@ impl WorldSettings {
             zone_every: 10,
             zone_rest: 42,
             flyer_every: 1,
+            verbose: true,
         }
     }
 }
@@ -64,7 +61,7 @@ pub struct World {
     req_air_action: Vec<Action>,
     req_board_action: Vec<Action>,
     tick: usize,
-    history: Vec<Record>,
+    historian: Historian,
 }
 
 impl World {
@@ -75,6 +72,7 @@ impl World {
         World {
             fog,
             flyer: Flyer::new(settings.fly_start),
+            historian: Historian::new(settings.verbose),
             settings,
             pieces: HashMap::new(),
             pieces_map: pieces,
@@ -82,7 +80,6 @@ impl World {
             req_air_action: Vec::new(),
             req_board_action: Vec::new(),
             tick: 0,
-            history: Vec::new(),
         }
     }
 
@@ -142,6 +139,12 @@ impl World {
                                 piece.place(&to);
                                 self.pieces_map[to.y][to.x] = piece_id;
                                 self.pieces_map[from.y][from.x] = 0;
+                                self.historian.record_player(
+                                    user,
+                                    self.tick,
+                                    piece.kind,
+                             format!("Move {:?} -> {:?}", from, to),
+                                )
                             }
                         }
 
@@ -165,13 +168,11 @@ impl World {
                                 let next_coord = coord.translate(off);
                                 if next_coord.is_inside(&shape) {
                                     self.players[idx].transition(PlayerState::Falling(h, next_coord));
-                                    self.history.push(
-                                        Record{
-                                            player: user,
-                                            tick: self.tick,
-                                            piece: PieceType::King,
-                                            event: format!("Fly -> {:?}", next_coord),
-                                        }
+                                    self.historian.record_player(
+                                        user,
+                                        self.tick,
+                                        PieceType::King,
+                                        format!("Fly -> {:?}", next_coord),
                                     );
                                 }
                             },
@@ -200,13 +201,12 @@ impl World {
                     for idx in 0..self.players.len() {
                         if !self.players[idx].state.is_flying() { continue; }
                         self.players[idx].transition(PlayerState::Falling(self.settings.drop_height, flyer.clone()));
-                        self.history.push(
-                            Record{
-                                player: self.players[idx].player_id,
-                                tick: self.tick,
-                                piece: PieceType::King,
-                                event: format!("Drop -> {:?}:{}", flyer, self.settings.drop_height),
-                            }
+                        self.historian.record_player(
+                            self.players[idx].player_id,
+                            self.tick,
+                            PieceType::King,
+                            format!("Drop -> {:?}:{}", flyer, self.settings.drop_height),
+                            
                         );
                     }
                 }
@@ -220,13 +220,11 @@ impl World {
                         match action {
                             Action::Drop(user) => {
                                 self.transition_player(user, PlayerState::Falling(self.settings.drop_height, flyer.clone()));
-                                self.history.push(
-                                    Record{
-                                        player: user,
-                                        tick: self.tick,
-                                        piece: PieceType::King,
-                                        event: format!("Drop -> {:?}:{}", flyer, self.settings.drop_height),
-                                    }
+                                self.historian.record_player(
+                                    user,
+                                    self.tick,
+                                    PieceType::King,
+                                    format!("Drop -> {:?}:{}", flyer, self.settings.drop_height),
                                 );
                             }
                             _ => (),
@@ -246,13 +244,11 @@ impl World {
                     let uid = self.players[idx].player_id;
                     if h > 1 {
                         self.players[idx].transition(PlayerState::Falling(h - 1, coord));
-                        self.history.push(
-                            Record{
-                                player: uid,
-                                piece: PieceType::King,
-                                tick: self.tick,
-                                event: format!("Fall -> {:?}:{}", coord, h - 1),
-                            }
+                        self.historian.record_player(
+                            uid,
+                            self.tick,
+                            PieceType::King,
+                            format!("Fall -> {:?}:{}", coord, h - 1),
                         )
                     } else {
                         self.players[idx].transition(PlayerState::Boarded);
@@ -261,13 +257,11 @@ impl World {
                         let piece_id = self.pieces_map.max_val() + 1;
                         self.pieces_map[coord.y][coord.x] = piece_id;
                         self.pieces.insert(piece_id, piece);
-                        self.history.push(
-                            Record{
-                                player: uid,
-                                piece: PieceType::King,
-                                tick: self.tick,
-                                event: format!("Land -> {:?}", coord),
-                            }
+                        self.historian.record_player(
+                            uid,
+                            self.tick,
+                            PieceType::King,
+                            format!("Land -> {:?}", coord),
                         );
                     }
                 },
