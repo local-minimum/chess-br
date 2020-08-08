@@ -60,6 +60,7 @@ pub struct World {
 
     req_air_action: Vec<Action>,
     req_board_action: Vec<Action>,
+    alive: bool,
     tick: usize,
     historian: Historian,
 }
@@ -80,6 +81,7 @@ impl World {
             req_air_action: Vec::new(),
             req_board_action: Vec::new(),
             tick: 0,
+            alive: true,
         }
     }
 
@@ -143,7 +145,7 @@ impl World {
                                 kind = piece.kind.clone();
 
                                 // Moving
-                                piece.place(&to);
+                                piece.place(to.clone());
                                 self.pieces_map[to.y][to.x] = piece_id;
                                 self.pieces_map[from.y][from.x] = 0;
                                 self.historian.record_player(
@@ -157,42 +159,54 @@ impl World {
                     }
                     _ => (),
                 }
-
-                // The act of taking
-                match self.pieces.get_mut(&other_piece_id) {
-                    Some(other) => {
-                        if !other.alive { return; }
-                        other.alive = false;
-                        self.players.get_mut(&user).unwrap().score += other.kind.value();
-                        match other.kind {
-                            PieceType::Empty => (),
-                            PieceType::King => {
-                                if self.players.contains_key(&other.player) {
-                                    let rank = self.players.iter().filter(| (_, p) | p.state.is_alive()).count();
-                                    self.players.get_mut(&other.player).unwrap().transition(PlayerState::Dead(rank as u16));
-                                }
-                                self.historian.record_player(
-                                    user,
-                                    self.tick,
-                                    kind,
-                                    format!("Capture {:?} @ {:?}", other.kind, to),
-                                );
-                            },
-                            _ => {
-                                self.historian.record_player(
-                                    user,
-                                    self.tick,
-                                    kind,
-                                    format!("Capture {:?} @ {:?}", other.kind, to),
-                                )
-                            }
-                        }
-                    },
-                    _ => (),
-                }
+                self.do_take(other_piece_id, user, kind);
             },
             _ => ()
         }
+    }
+
+    fn do_take(&mut self, other_piece_id: u16, taker_id: u16, taken_by: PieceType) {
+        match self.pieces.get_mut(&other_piece_id) {
+            Some(other) => {
+                if !other.alive { return; }
+                let pos = other.position().unwrap().clone();
+                other.alive = false;
+                self.players.get_mut(&taker_id).unwrap().score += other.kind.value();
+                match other.kind {
+                    PieceType::Empty => (),
+                    PieceType::King => {
+                        if self.players.contains_key(&other.player) {
+                            let rank = self.players.iter()
+                                .filter(| (_, p) | p.state.is_alive()).count();
+                            if rank == 2 {
+                                // Give rank 1 to self
+                                self.players.get_mut(&taker_id).unwrap()
+                                    .transition(PlayerState::Dead(1));
+                                self.alive = false;
+                            }
+                            self.players.get_mut(&other.player).unwrap()
+                                .transition(PlayerState::Dead(rank as u16));
+                        }
+                        self.historian.record_player(
+                            taker_id,
+                            self.tick,
+                            taken_by,
+                            format!("Capture {:?} @ {:?}", other.kind, pos),
+                        );
+                    },
+                    _ => {
+                        self.historian.record_player(
+                            taker_id,
+                            self.tick,
+                            taken_by,
+                            format!("Capture {:?} @ {:?}", other.kind, pos),
+                        )
+                    }
+                }
+            },
+            _ => (),
+        }
+
     }
 
     fn do_move_falling(&mut self, mut fly_actions: Vec<Action>) {
@@ -283,10 +297,17 @@ impl World {
                     } else {
                         self.players.get_mut(uid).unwrap().transition(PlayerState::Boarded);
                         let mut piece = Piece::new(PieceType::King, *uid);
-                        piece.place(&coord);
-                        let piece_id = self.pieces_map.max_val() + 1;
-                        self.pieces_map[coord.y][coord.x] = piece_id;
+                        piece.place(coord.clone());
+                        let piece_id = self.pieces.len() as u16 + 1;
                         self.pieces.insert(piece_id, piece);
+                        if self.pieces_map[coord.y][coord.x] > 0 {
+                            self.do_take(
+                                self.pieces_map[coord.y][coord.x],
+                                *uid,
+                                PieceType::King,
+                            )
+                        }
+                        self.pieces_map[coord.y][coord.x] = piece_id;
                         self.historian.record_player(
                             *uid,
                             self.tick,
@@ -301,6 +322,7 @@ impl World {
     }
 
     pub fn do_tick(&mut self) {
+        if !self.alive { return; }
         // Modify world
         if self.flyer.flying() {
             if (self.tick % self.settings.flyer_every) == 0 { self.flyer.tick(); }
@@ -339,7 +361,7 @@ impl World {
             .iter()
             .map(|(_, p)| p.clone())
             .collect();
-        players.sort_by(|a, b| a.score.cmp(&b.score));
+        players.sort_by(|a, b| b.score.cmp(&a.score));
         players
     }
 

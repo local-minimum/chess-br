@@ -59,9 +59,9 @@ impl Piece {
         Piece{kind, player, history: Vec::new(), alive: true}
     }
 
-    pub fn place(&mut self, coord: &Coord) {
+    pub fn place(&mut self, coord: Coord) {
         if self.alive {
-            self.history.push(coord.clone());
+            self.history.push(coord);
         }
     }
 
