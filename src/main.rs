@@ -6,8 +6,8 @@ use ::chess_br::world::display::{print_board_pair, print_air};
 
 fn print_scores(world: &World) {
     for (idx, player) in world.players_by_score().iter().enumerate() {
-        let (score, name) = player.in_game_info();
-        println!("{}.\t({})\t{}", idx + 1, score, name);
+        let (rank, score, name) = player.in_game_info();
+        println!("{}.\tScore {} / Placement {}\t{}", idx + 1, score, if rank > 0 { format!("{}", rank) } else { String::from("?") },name);
     }
 }
 

@@ -123,6 +123,8 @@ impl World {
             Action::Move(user, from, to) => {
                 let piece_id = self.pieces_map[from.y][from.x];
                 if piece_id == 0 { return; }
+                let mut other_piece_id = 0 as u16;
+                let mut kind = PieceType::Empty;
                 match self.pieces.get_mut(&piece_id) {
                     Some(piece) => {
                         if piece.player != user { return; }
@@ -134,7 +136,11 @@ impl World {
                                         return ;
                                     }
                                 }
-                                // Taking
+
+                                // Taking (preparing, actual happens below)
+                                other_piece_id = self.pieces_map[to.y][to.x];
+                                kind = piece.kind.clone();
+
                                 // Moving
                                 piece.place(&to);
                                 self.pieces_map[to.y][to.x] = piece_id;
@@ -143,12 +149,42 @@ impl World {
                                     user,
                                     self.tick,
                                     piece.kind,
-                             format!("Move {:?} -> {:?}", from, to),
+                                    format!("Move {:?} -> {:?}", from, to),
                                 )
                             }
                         }
-
                     }
+                    _ => (),
+                }
+
+                match self.pieces.get_mut(&other_piece_id) {
+                    Some(other) => {
+                        match kind {
+                            PieceType::Empty => (),
+                            PieceType::King => {
+                                for idx in 0..self.players.len() {
+                                    if self.players[idx].player_id != other.player { continue; }
+                                    let rank = self.players.iter().filter(| p | p.state.is_alive()).count();
+                                    self.players[idx].transition(PlayerState::Dead(rank as u16));
+                                    break;
+                                }
+                                self.historian.record_player(
+                                    user,
+                                    self.tick,
+                                    kind,
+                                    format!("Capture {:?} @ {:?}", other.kind, to),
+                                );
+                            },
+                            _ => {
+                                self.historian.record_player(
+                                    user,
+                                    self.tick,
+                                    kind,
+                                    format!("Capture {:?} @ {:?}", other.kind, to),
+                                )
+                            }
+                        }
+                    },
                     _ => (),
                 }
             },

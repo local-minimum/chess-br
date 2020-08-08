@@ -46,6 +46,13 @@ impl PlayerState {
             _ => false,
         }
     }
+
+    pub fn is_alive(&self) -> bool {
+        match self {
+            PlayerState::Dead(_rank) => false,
+            _ => true,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -68,8 +75,11 @@ impl Player {
         }
     }
 
-    pub fn in_game_info(&self) -> (u16, String) {
-        (self.score, self.game_name.clone())
+    pub fn in_game_info(&self) -> (u16, u16, String) {
+        match self.state {
+            PlayerState::Dead(rank) => (rank, self.score, self.game_name.clone()),
+            _ => (0, self.score, self.game_name.clone())
+        }
     }
 
     pub fn transition(&mut self, state: PlayerState) {

@@ -35,7 +35,7 @@ Doesn't depend on shapes but given game length of N ticks.
 - [ ] Push apart while in air?
 
 ## Move
-- [ ] Take
+- [x] Take
 - [x] Basic valid piece moves
 - [ ] En passant (requires piece knowing last move, orthogonal en passant?)
 - [ ] Limit pawn to one direction (requires piece knowing last move)
@@ -43,3 +43,7 @@ Doesn't depend on shapes but given game length of N ticks.
 - [ ] Allow promotion (requires pawn know traversed distance)
 - [ ] Gain piece by proximity
 - [ ] Castling pre 1972 rules (req know traversed distance)
+
+## Scoring
+
+- [ ] Add take value to score
