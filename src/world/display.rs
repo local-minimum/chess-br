@@ -18,7 +18,7 @@ fn encode_ch(val: u16) -> String {
 pub fn print_board(board: &Vec<Vec<u16>>) {
     println!("");
     for row in board.iter() {
-        let out = row 
+        let out = row
             .into_iter()
             .map(|i| encode_ch(*i))
             .collect::<String>();
@@ -42,7 +42,7 @@ pub fn print_board_pair(first: &Vec<Vec<u16>>, second: &Vec<Vec<u16>>) {
 }
 
 pub fn print_air(
-    shape: Coord, 
+    shape: Coord,
     falling: &Vec<Player>,
     height: u16,
 ) {

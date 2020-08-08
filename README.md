@@ -36,7 +36,7 @@ Doesn't depend on shapes but given game length of N ticks.
 
 ## Move
 - [x] Take
-- [ ] Update piece status on take?
+- [x] Update piece status on take?
 - [x] Basic valid piece moves
 - [ ] En passant (requires piece knowing last move, orthogonal en passant?)
 - [ ] Limit pawn to one direction (requires piece knowing last move)
@@ -47,4 +47,4 @@ Doesn't depend on shapes but given game length of N ticks.
 
 ## Scoring
 
-- [ ] Add take value to score
+- [x] Add take value to score

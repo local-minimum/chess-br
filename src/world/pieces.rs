@@ -33,24 +33,39 @@ impl PieceType {
             },
         }
     }
+
+    pub fn value(&self) -> u16 {
+        match self {
+            PieceType::Bishop => 3,
+            PieceType::Empty => 0,
+            PieceType::King => 20,
+            PieceType::Knight => 3,
+            PieceType::Pawn => 1,
+            PieceType::Queen => 9,
+            PieceType::Rook => 5,
+        }
+    }
 }
 
 pub struct Piece {
     pub kind: PieceType,
     pub player: u16,
-    history: Vec<Coord>
+    history: Vec<Coord>,
+    pub alive: bool,
 }
 
 impl Piece {
     pub fn new(kind: PieceType, player: u16) -> Self {
-        Piece{kind, player, history: Vec::new()}
+        Piece{kind, player, history: Vec::new(), alive: true}
     }
 
     pub fn place(&mut self, coord: &Coord) {
-        self.history.push(coord.clone());
+        if self.alive {
+            self.history.push(coord.clone());
+        }
     }
 
     pub fn position(&self) -> Option<&Coord> {
-        self.history.last()
+        if self.alive {self.history.last()} else { None }
     }
 }

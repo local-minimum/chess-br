@@ -23,13 +23,13 @@ fn main() {
     }
     world.request_action(Action::Drop(1));
     world.do_tick();
-    print_air(world.fog.shape(), &world.players, 10);
+    print_air(world.fog.shape(), &world.players_by_score(), 10);
     world.request_action(Action::Fly(1, Offset{x: -1, y: 0}));
     world.request_action(Action::Drop(2));
     world.do_tick();
 
-    print_air(world.fog.shape(), &world.players, 10);
-    print_air(world.fog.shape(), &world.players, 9);
+    print_air(world.fog.shape(), &world.players_by_score(), 10);
+    print_air(world.fog.shape(), &world.players_by_score(), 9);
     while world.airborne_count() > 0 {
         world.do_tick()
     }
@@ -41,5 +41,5 @@ fn main() {
     world.do_tick();
     print_board_pair(&world.pieces_map, &world.fog.zones);
 
-    print_scores(&world);    
+    print_scores(&world);
 }
