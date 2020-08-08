@@ -119,4 +119,18 @@ impl Offset {
             y: if self.y < 0 { -1 } else if self.y > 0 { 1 } else { 0 },
         }
     }
+
+    pub fn as_direction(&self) -> Option<Direction> {
+        match self.direction() {
+            Offset{x: 0, y: 1} => Some(Direction::South),
+            Offset{x: 1, y: 1} => Some(Direction::SouthEast),
+            Offset{x: -1, y: 1} => Some(Direction::SouthWest),
+            Offset{x: 0, y: -1} => Some(Direction::North),
+            Offset{x: 1, y: -1} => Some(Direction::NorthEast),
+            Offset{x: -1, y: -1} => Some(Direction::NorthWest),
+            Offset{x: 1, y: 0} => Some(Direction::East),
+            Offset{x: -1, y: 0} => Some(Direction::West),
+            _ => None
+        }
+    }
 }

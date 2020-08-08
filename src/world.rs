@@ -121,6 +121,20 @@ impl World {
         }
     }
 
+    pub fn no_piece_between(&self, from: &Coord, to: &Coord) -> bool {
+        match from.steps(to) {
+            None => false,
+            Some(steps) => {
+                for step in steps {
+                    if self.pieces_map[step.y][step.x] > 0 {
+                        return false;
+                    }
+                }
+                return true
+            }
+        }
+    }
+
     pub fn do_board_move(&mut self, action: Action) {
         match action {
             Action::Move(user, from, to) => {
