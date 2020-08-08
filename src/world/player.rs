@@ -2,7 +2,7 @@ use rand::seq::SliceRandom;
 
 use crate::world::position::Coord;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum PlayerState {
     Flying,
     Falling(u16, Coord), // height and position
@@ -38,11 +38,19 @@ impl PlayerState {
             _ => false,
         }
     }
+
+    pub fn is_airborne(&self) -> bool {
+        match self {
+            PlayerState::Flying => true,
+            PlayerState::Falling(_h, _coord) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Player {
-    pub game_id: u16,
+    pub player_id: u16,
     pub game_name: String,
     pub user_name: String,
     pub score: u16,
@@ -50,9 +58,9 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(game_id: u16, user_name: String, namer: &mut GamerNamer) -> Player {
+    pub fn new(player_id: u16, user_name: String, namer: &mut GamerNamer) -> Player {
         Player{
-            game_id,
+            player_id,
             game_name: namer.next(),
             user_name: user_name.clone(),
             score: 0,

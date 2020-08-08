@@ -59,7 +59,7 @@ pub struct World {
     pub pieces: HashMap<u16, Piece>,
     pub pieces_map: Vec<Vec<u16>>,
     pub flyer: Flyer,
-    players: Vec<Player>,
+    pub players: Vec<Player>,
 
     req_air_action: Vec<Action>,
     req_board_action: Vec<Action>,
@@ -86,41 +86,20 @@ impl World {
         }
     }
 
-    pub fn flying(&self) -> Vec<&Player> {
-        self.players
-            .iter()
-            .filter_map(|p| if p.state.is_flying() { Some(p) } else { None })
-            .collect()
-    }
-
-    pub fn falling(&self) -> Vec<&Player> {
-        self.players
-            .iter()
-            .filter_map(|p| if p.state.can_fly() { Some(p) } else { None })
-            .collect()
-    }
-
-    pub fn boarded(&self) -> Vec<&Player> {
-        self.players
-            .iter()
-            .filter_map(|p| if p.state.is_boarded() { Some(p) } else { None })
-            .collect()
-    }
-
     pub fn request_action(&mut self, action: Action) {
         match action {
             Action::Drop(user) => {
-                if self.flying().iter().any(|p| p.game_id == user) && self.flyer.can_drop() {
+                if self.players.iter().any(|p| p.player_id == user && p.state.is_flying()) && self.flyer.can_drop() {
                     self.req_air_action.push(action);
                 }
             }
             Action::Fly(user, _off) => {
-                if self.falling().iter().any(| p | p.game_id == user) {
+                if self.players.iter().any(| p | p.player_id == user && p.state.can_fly()) {
                     self.req_air_action.push(action);
                 }
             }
             Action::Move(user, _from, _to) => {
-                if self.boarded().iter().any(| p | p.game_id == user) {
+                if self.players.iter().any(| p | p.player_id == user && p.state.is_boarded()) {
                     self.req_board_action.retain(|a| match a {
                         Action::Move(uid, _from, _to) => return *uid != user,
                         _ => return true
@@ -179,25 +158,24 @@ impl World {
         while let Some(action) = fly_actions.pop() {
             match action {
                 Action::Fly(user, off) => {
-                    let mut itemidx = -1;
-                    for (idx, item) in self.falling.iter().enumerate() {
-                        if user != item.0 { continue; }
-                        itemidx = idx as i32;
-                        break;
-                    }
-                    if itemidx > -1 {
-                        let (uid, height, coord) = self.falling[itemidx as usize];
-                        let next_coord = coord.translate(off);
-                        if next_coord.is_inside(&shape) {
-                            self.falling[itemidx as usize] = (uid, height, next_coord);
-                            self.history.push(
-                                Record{
-                                    player: user,
-                                    tick: self.tick,
-                                    piece: PieceType::King,
-                                    event: format!("Fly -> {:?}", next_coord),
+                    for idx in 0..self.players.len() {
+                        if self.players[idx].player_id != user || !self.players[idx].state.can_fly() { continue; }
+                        match self.players[idx].state {
+                            PlayerState::Falling(h, coord) => {
+                                let next_coord = coord.translate(off);
+                                if next_coord.is_inside(&shape) {
+                                    self.players[idx].transition(PlayerState::Falling(h, next_coord));
+                                    self.history.push(
+                                        Record{
+                                            player: user,
+                                            tick: self.tick,
+                                            piece: PieceType::King,
+                                            event: format!("Fly -> {:?}", next_coord),
+                                        }
+                                    );
                                 }
-                            );
+                            },
+                            _ => (),
                         }
                     }
                 },
@@ -207,15 +185,10 @@ impl World {
     }
 
     fn transition_player(&mut self, player: u16, state: PlayerState) {
-        let mut idx: i32 = -1;
-        for (i, p) in self.players.iter().enumerate() {
-            if p.game_id == player {
-                idx = i as i32;
-                break;
-            }
-        }
-        if idx >= 0 {
-            self.players[idx as usize].transition(state);
+        for idx in 0..self.players.len() {
+            if self.players[idx].player_id != player { continue; }
+            self.players[idx].transition(state);
+            break
         }
     }
 
@@ -229,7 +202,7 @@ impl World {
                         self.players[idx].transition(PlayerState::Falling(self.settings.drop_height, flyer.clone()));
                         self.history.push(
                             Record{
-                                player: self.players[idx].game_id,
+                                player: self.players[idx].player_id,
                                 tick: self.tick,
                                 piece: PieceType::King,
                                 event: format!("Drop -> {:?}:{}", flyer, self.settings.drop_height),
@@ -267,46 +240,40 @@ impl World {
     }
 
     fn do_lower_falling(&mut self) {
-        let landers: Vec<(u16, u16, Coord)> = self.falling
-            .iter()
-            .filter(| (_uid, height, _coord) | *height == 1)
-            .map(| (uid, height, coord) | (*uid, *height, coord.clone()))
-            .collect();
-
-        self.falling = self.falling
-            .iter()
-            .filter(| (_uid, height, _coord) | *height > 1)
-            .map(| (uid, height, coord) | (*uid, *height - 1, coord.clone()))
-            .collect();
-
-        for (uid, h, coord) in self.falling.iter() {
-            self.history.push(
-                Record{
-                    player: *uid,
-                    piece: PieceType::King,
-                    tick: self.tick,
-                    event: format!("Fall -> {:?}:{}", *coord, *h),
-                }
-            )
+        for idx in 0..self.players.len() {
+            match self.players[idx].state {
+                PlayerState::Falling(h, coord) => {
+                    let uid = self.players[idx].player_id;
+                    if h > 1 {
+                        self.players[idx].transition(PlayerState::Falling(h - 1, coord));
+                        self.history.push(
+                            Record{
+                                player: uid,
+                                piece: PieceType::King,
+                                tick: self.tick,
+                                event: format!("Fall -> {:?}:{}", coord, h - 1),
+                            }
+                        )
+                    } else {
+                        self.players[idx].transition(PlayerState::Boarded);
+                        let mut piece = Piece::new(PieceType::King, uid);
+                        piece.place(&coord);
+                        let piece_id = self.pieces_map.max_val() + 1;
+                        self.pieces_map[coord.y][coord.x] = piece_id;
+                        self.pieces.insert(piece_id, piece);
+                        self.history.push(
+                            Record{
+                                player: uid,
+                                piece: PieceType::King,
+                                tick: self.tick,
+                                event: format!("Land -> {:?}", coord),
+                            }
+                        );
+                    }
+                },
+                _ => (),
+            }
         }
-
-        for (uid, _h, coord) in landers {
-            let mut piece = Piece::new(PieceType::King, uid);
-            piece.place(&coord);
-            let piece_id = self.pieces_map.max_val() + 1;
-            self.pieces_map[coord.y][coord.x] = piece_id;
-            self.pieces.insert(piece_id, piece);
-            self.history.push(
-                Record{
-                    player: uid,
-                    piece: PieceType::King,
-                    tick: self.tick,
-                    event: format!("Land -> {:?}", coord),
-                }
-            );
-            self.boarded.push(uid);
-        }
-
     }
 
     pub fn do_tick(&mut self) {
@@ -365,11 +332,11 @@ impl World {
     }
 
     pub fn flyers_count(&self) -> usize {
-        self.flying().len()
+        self.players.iter().filter(| p | p.state.is_flying()).count()
     }
 
-    pub fn falling_count(&self) -> usize {
-        self.falling.len()
+    pub fn airborne_count(&self) -> usize {
+        self.players.iter().filter(| p | p.state.is_airborne()).count()
     }
 }
 

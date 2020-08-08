@@ -1,6 +1,7 @@
 use std::char;
 
 use crate::world::Coord;
+use crate::world::player::{Player, PlayerState};
 
 fn encode_ch(val: u16) -> String {
     if val > 9 {
@@ -42,13 +43,18 @@ pub fn print_board_pair(first: &Vec<Vec<u16>>, second: &Vec<Vec<u16>>) {
 
 pub fn print_air(
     shape: Coord, 
-    falling: &Vec<(u16, u16, Coord)>,
+    falling: &Vec<Player>,
     height: u16,
 ) {
     let mut lvl = vec![vec![0 as u16; shape.x]; shape.y];
-    for (uid, h, coord) in falling.iter() {
-        if *h != height { continue; }
-        lvl[coord.y][coord.x] = *uid;
+    for player in falling {
+        match player.state {
+            PlayerState::Falling(h, coord) => {
+                if h != height { continue; }
+                lvl[coord.y][coord.x] = player.player_id;
+            },
+            _ => (),
+        }
     }
     print_board(&lvl);
 }
