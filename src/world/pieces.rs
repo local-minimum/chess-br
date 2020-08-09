@@ -72,28 +72,42 @@ impl Piece {
         if self.alive {self.history.last()} else { None }
     }
 
-    pub fn pawn_direction(&self) -> Option<Direction> {
+    pub fn pawn_direction(&self) -> Option<Vec<Direction>> {
         let l = self.history.len();
         if l < 2 { return None }
         // If previous move was straight then you have a direction
-        let off: Offset = self.history[l - 1] - self.history[l - 2];
-        if off.manhattan() == 1 {
-            return off.as_direction()
-        } else {
-            // You took last move so you can have multiple?
+        let mut cross: Vec<Direction> = Vec::new();
+        for idx in 1..l {
+            let off = self.history[idx] - self.history[idx - 1];
+            let dir: Direction = off.as_direction().unwrap();
+            if cross.len() == 0 {
+                cross = dir.closest_cross();
+            } else {
+                cross = dir.common_cross(cross);
+            }
+            if cross.len() == 1 { break; }
         }
-        None
+        Some(cross)
     }
 
     pub fn can_move_to(&self, world: &World, coord: &Coord) -> bool {
         let pos = self.position().unwrap();
         let off: Offset = *coord - *pos;
+        // May not self take
+        match world.pieces.get(&world.pieces_map[coord.y][coord.x]) {
+            Some(target_piece) => {
+                if target_piece.player == self.player {
+                    return false
+                }
+            },
+            _ => (),
+        }
         match self.kind {
             PieceType::Empty => false,
             PieceType::King => {
-                if off.chebyshev() > 1 { 
-                    // Castling 
-                    return false; 
+                if off.chebyshev() > 1 {
+                    // Castling
+                    return false;
                 }
                 // Check if coord is checked
                 true
@@ -103,39 +117,43 @@ impl Piece {
                     // First move rules
                     // Move one or two steps
                     if off.chebyshev() == off.manhattan() && off.chebyshev() <= 2 {
-                        return world.no_piece_between(pos, coord) 
-                    }                    
-                } else {
-                    if off.chebyshev() > 1 { return false }
-                    // Make sure straight move follows line
-                    if off.manhattan() == 1 {
-
+                        return world.no_piece_between(pos, coord)
                     }
+                    return false;
+                } else {
+                    if off.chebyshev() > 1 || off.chebyshev() == 0 { return false }
+                    // All possible cross directions based on previous moves
+                    let directions = self.pawn_direction().unwrap();
+                    let off_dir = off.as_direction().unwrap();
+                    if !directions.iter().any(| d | off_dir.rotation(d).abs() < 2) { return false }
+                    // May not take straight
+                    if off.manhattan() == 1 { return world.pieces_map[coord.y][coord.x] == 0;}
+                    // Must take on diagonal (we already know it's not our piece)
+                    return world.pieces_map[coord.y][coord.x] != 0;
                 }
-                false
             },
             PieceType::Knight => off.chebyshev() == 2 && off.skew() == 1,
             PieceType::Bishop => {
                 if off.chebyshev() < MOVE_RANGE_LIMIT && off.skew() == 0 {
-                    return world.no_piece_between(pos, coord) 
+                    return world.no_piece_between(pos, coord)
                 }
-                false 
+                false
             },
             PieceType::Rook => {
                 let c = off.chebyshev();
                 if c < MOVE_RANGE_LIMIT && off.manhattan() == c {
-                    return world.no_piece_between(pos, coord) 
+                    return world.no_piece_between(pos, coord)
                 }
                 false
             },
             PieceType::Queen => {
                 let c = off.chebyshev();
                 if c < MOVE_RANGE_LIMIT && (off.skew() == 0 || off.manhattan() == c) {
-                    return world.no_piece_between(pos, coord) 
+                    return world.no_piece_between(pos, coord)
                 }
                 false
             },
-            
+
         }
     }
 }

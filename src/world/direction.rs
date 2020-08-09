@@ -71,4 +71,88 @@ impl Direction {
             _ => self.clone(),
         }
     }
+
+    fn as_rank(&self) -> i16 {
+        let my_idxs: Vec<i16> = Direction::iterator()
+            .enumerate()
+            .filter_map(| (idx, d) | if d.is(self) { Some(idx as i16) } else { None })
+            .collect();
+        *my_idxs.first().unwrap()
+    }
+
+    pub fn rotation(&self, other: &Direction) -> i16 {
+        self.as_rank() - other.as_rank()
+    }
+
+    pub fn is(&self, other: &Direction) -> bool {
+        match self {
+            Direction::North => {
+                match other {
+                    Direction::North => true,
+                    _ => false,
+                }
+            }
+            Direction::NorthEast => {
+                match other {
+                    Direction::NorthEast => true,
+                    _ => false,
+                }
+            }
+            Direction::NorthWest => {
+                match other {
+                    Direction::NorthWest => true,
+                    _ => false,
+                }
+            }
+            Direction::South => {
+                match other {
+                    Direction::South => true,
+                    _ => false,
+                }
+            }
+            Direction::SouthWest => {
+                match other {
+                    Direction::SouthWest => true,
+                    _ => false,
+                }
+            }
+            Direction::SouthEast => {
+                match other {
+                    Direction::SouthEast => true,
+                    _ => false,
+                }
+            }
+            Direction::West => {
+                match other {
+                    Direction::West => true,
+                    _ => false,
+                }
+            }
+            Direction::East => {
+                match other {
+                    Direction::East => true,
+                    _ => false,
+                }
+            }
+        }
+    }
+
+    pub fn closest_cross(&self) -> Vec<Direction> {
+        match self {
+            Direction::North => vec![Direction::North],
+            Direction::NorthWest => vec![Direction::North, Direction::West],
+            Direction::NorthEast => vec![Direction::North, Direction::East],
+            Direction::West => vec![Direction::West],
+            Direction::East => vec![Direction::East],
+            Direction::South => vec![Direction::South],
+            Direction::SouthWest => vec![Direction::South, Direction::West],
+            Direction::SouthEast => vec![Direction::South, Direction::East],
+        }
+    }
+
+    pub fn common_cross(&self, prev: Vec<Direction>) -> Vec<Direction> {
+        let mut cross = self.closest_cross();
+        cross.retain(| d | prev.iter().any(|o | d.is(o)));
+        cross
+    }
 }
