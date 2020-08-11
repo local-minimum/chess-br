@@ -72,22 +72,22 @@ impl Piece {
         if self.alive {self.history.last()} else { None }
     }
 
-    pub fn pawn_direction(&self) -> Option<Vec<Direction>> {
+    pub fn pawn_direction(&self) -> Vec<Direction> {
         let l = self.history.len();
-        if l < 2 { return None }
+        if l < 2 { return Direction::cardinals() }
         // If previous move was straight then you have a direction
         let mut cross: Vec<Direction> = Vec::new();
         for idx in 1..l {
             let off = self.history[idx] - self.history[idx - 1];
             let dir: Direction = off.as_direction().unwrap();
             if cross.len() == 0 {
-                cross = dir.closest_cross();
+                cross = dir.closest_cardinals();
             } else {
-                cross = dir.common_cross(cross);
+                cross = dir.common_cardinals(cross);
             }
             if cross.len() == 1 { break; }
         }
-        Some(cross)
+        cross
     }
 
     pub fn can_move_to(&self, world: &World, coord: &Coord) -> bool {
@@ -106,31 +106,39 @@ impl Piece {
             PieceType::Empty => false,
             PieceType::King => {
                 if off.chebyshev() > 1 {
-                    // Castling
+                    // TODO: Castling
                     return false;
                 }
-                // Check if coord is checked
+                // TODO: Check if coord is checked
                 true
             },
             PieceType::Pawn => {
-                if self.history.len() == 1 {
-                    // First move rules
-                    // Move one or two steps
-                    if off.chebyshev() == off.manhattan() && off.chebyshev() <= 2 {
-                        return world.no_piece_between(pos, coord)
+                if off.manhattan() > 2 { return false; }
+
+                let off_dir = off.as_direction().unwrap();
+                let directions = self.pawn_direction();
+
+                // Not taking
+                if off.chebyshev() == off.manhattan() {
+                    // Move length
+                    if off.manhattan() == 2 || self.history.len() > 1 { return false; }
+                    // Check not changing cardinal directions
+                    if !directions.iter().any(| d | off_dir.is(d)) {
+                        return false;
+                    }
+                    if world.no_piece_between(pos, coord) {
+                        // To piece allowed at target position
+                        return world.pieces_map[coord.y][coord.x] == 0;
                     }
                     return false;
-                } else {
-                    if off.chebyshev() > 1 || off.chebyshev() == 0 { return false }
-                    // All possible cross directions based on previous moves
-                    let directions = self.pawn_direction().unwrap();
-                    let off_dir = off.as_direction().unwrap();
-                    if !directions.iter().any(| d | off_dir.rotation(d).abs() < 2) { return false }
-                    // May not take straight
-                    if off.manhattan() == 1 { return world.pieces_map[coord.y][coord.x] == 0;}
-                    // Must take on diagonal (we already know it's not our piece)
-                    return world.pieces_map[coord.y][coord.x] != 0;
                 }
+
+                // Taking is exactly one diag step 
+                if off.chebyshev() > 1 || off.chebyshev() == 0 { return false }
+                // Must be something to take / we don't support en passant
+                if world.pieces_map[coord.y][coord.x] == 0 { return false };
+                // Must neighbour any existing direction
+                return !directions.iter().any(| d | off_dir.rotation(d).abs() < 2)
             },
             PieceType::Knight => off.chebyshev() == 2 && off.skew() == 1,
             PieceType::Bishop => {

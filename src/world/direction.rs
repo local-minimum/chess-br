@@ -26,6 +26,15 @@ impl Direction {
         ].iter().copied()
     }
 
+    pub fn cardinals() -> Vec<Direction> {
+        vec![
+            Direction::North,
+            Direction::East,
+            Direction::West,
+            Direction::South,
+        ]
+    }
+
     pub fn rnd() -> Direction {
         let mut rng = rand::thread_rng();
         [
@@ -137,7 +146,7 @@ impl Direction {
         }
     }
 
-    pub fn closest_cross(&self) -> Vec<Direction> {
+    pub fn closest_cardinals(&self) -> Vec<Direction> {
         match self {
             Direction::North => vec![Direction::North],
             Direction::NorthWest => vec![Direction::North, Direction::West],
@@ -150,8 +159,8 @@ impl Direction {
         }
     }
 
-    pub fn common_cross(&self, prev: Vec<Direction>) -> Vec<Direction> {
-        let mut cross = self.closest_cross();
+    pub fn common_cardinals(&self, prev: Vec<Direction>) -> Vec<Direction> {
+        let mut cross = self.closest_cardinals();
         cross.retain(| d | prev.iter().any(|o | d.is(o)));
         cross
     }
