@@ -1,6 +1,7 @@
 use crate::world::position::{Coord, Offset, Positional};
 use crate::world::direction::Direction;
 use crate::world::World;
+use crate::world::board::Board;
 
 #[derive(Debug, Copy, Clone)]
 pub enum PieceType {
@@ -48,6 +49,13 @@ impl PieceType {
             PieceType::Rook => 5,
         }
     }
+
+    pub fn is_rook(&self) -> bool {
+        match self {
+            PieceType::Rook => true,
+            _ => false
+        }
+    }
 }
 
 pub struct Piece {
@@ -70,6 +78,10 @@ impl Piece {
 
     pub fn position(&self) -> Option<&Coord> {
         if self.alive {self.history.last()} else { None }
+    }
+
+    pub fn unmoved(&self) -> bool {
+        self.history.len() == 1
     }
 
     pub fn pawn_direction(&self) -> Vec<Direction> {
@@ -105,12 +117,29 @@ impl Piece {
         match self.kind {
             PieceType::Empty => false,
             PieceType::King => {
-                if off.chebyshev() > 1 {
-                    // TODO: Castling
-                    return false;
+                // Castling is only 2 along cardinal so no legal more than 2
+                if off.manhattan() > 2 { return false; }
+                if off.chebyshev() == 1 {
+                    // TODO: Check so coord is not in check
+                    return true;
                 }
-                // TODO: Check if coord is checked
-                true
+                // Castling
+                if self.unmoved() { return false };
+                // TODO: Check so pos, intermediate and coord is not in check
+                // Project on world to first piece in direction
+                match world.pieces_map.find_first(&coord, off.as_direction().unwrap()) {
+                    Some(other_id) => {
+                        let other = world.pieces.get(&other_id).unwrap();
+                        // First piece find must be ours and umoved too
+                        if other.player != self.player || !other.unmoved() { return false; }
+                        // Must not be too far
+                        let other_off: Offset = *other.position().unwrap() - *pos;
+                        if other_off.manhattan() >= MOVE_RANGE_LIMIT { return false; }
+                        // Check other is rook
+                        other.kind.is_rook()
+                    },
+                    None => false
+                }
             },
             PieceType::Pawn => {
                 if off.manhattan() > 2 { return false; }

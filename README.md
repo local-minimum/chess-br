@@ -41,10 +41,11 @@ Doesn't depend on shapes but given game length of N ticks.
 - ~~En passant (requires piece knowing last move, orthogonal en passant?)~~
 - [x] Limit pawn to one direction (requires piece knowing last move)
 - [x] Allow pawn first move two steps (requires piece knowing last move)
-- [ ] Fix first pawn move can take too
+- [x] Fix first pawn move can take too
 - [ ] Allow promotion (requires pawn know traversed distance)
 - [ ] Gain piece by proximity
-- [ ] Castling pre 1972 rules (req know traversed distance)
+- [x] Castling pre 1972 rules (req know traversed distance)
+- [ ] Find all opposing pieces that threaten ( watch out for king special rules to no stack overflow)
 
 ## Scoring
 

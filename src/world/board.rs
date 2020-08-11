@@ -19,6 +19,7 @@ pub trait Board {
     fn apply_when(&mut self, value: u16, other: &Self, other_value: u16);
     fn neighbour_min(&self, coord: &Coord, edge: &Coord) -> u16;
     fn neighbour_has_lambda(&self, coord: &Coord, out_of_bound_true: bool, test: &dyn Fn(u16, u16) -> bool) -> bool;
+    fn find_first(&self, start: &Coord, direction: Direction) -> Option<u16>;
 }
 
 fn min_non_zero(a: u16, b: u16) -> u16 {
@@ -209,5 +210,17 @@ impl Board for Vec<Vec<u16>> {
             }
         }
         false
+    }
+
+    fn find_first(&self, start: &Coord, direction: Direction) -> Option<u16> {
+        let mut pos = start.translate_direction(direction);
+        let shape = self.shape();
+        while self[pos.y][pos.x] == 0 {
+            pos = pos.translate_direction(direction);
+            if !pos.is_inside(&shape) {
+                return None
+            }
+        }
+        Some(self[pos.y][pos.x])
     }
 }
