@@ -62,30 +62,8 @@ impl Direction {
     pub fn rnd_next(&self, ratio: u16) -> Direction {
         let mut rng = rand::thread_rng();
         match rng.gen_range(0, ratio + 2) {
-            0 => {
-                match self {
-                    Direction::North => Direction::NorthWest,
-                    Direction::NorthWest => Direction::West,
-                    Direction::West => Direction::SouthWest,
-                    Direction::SouthWest => Direction::South,
-                    Direction::South => Direction::SouthEast,
-                    Direction::SouthEast => Direction::East,
-                    Direction::East => Direction::NorthEast,
-                    Direction::NorthEast => Direction::North,
-                }
-            },
-            1 => {
-                match self {
-                    Direction::North => Direction::NorthEast,
-                    Direction::NorthWest => Direction::North,
-                    Direction::West => Direction::NorthWest,
-                    Direction::SouthWest => Direction::West,
-                    Direction::South => Direction::SouthWest,
-                    Direction::SouthEast => Direction::South,
-                    Direction::East => Direction::SouthEast,
-                    Direction::NorthEast => Direction::East,
-                }
-            },
+            0 => self.neighbours()[0],
+            1 => self.neighbours()[1],
             _ => self.clone(),
         }
     }
