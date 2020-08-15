@@ -35,6 +35,15 @@ impl Direction {
         ]
     }
 
+    pub fn non_cardinals() -> Vec<Direction> {
+        vec![
+            Direction::NorthEast,
+            Direction::SouthEast,
+            Direction::SouthWest,
+            Direction::NorthWest,
+        ]
+    }
+
     pub fn rnd() -> Direction {
         let mut rng = rand::thread_rng();
         [
@@ -87,6 +96,15 @@ impl Direction {
             .filter_map(| (idx, d) | if d.is(self) { Some(idx as i16) } else { None })
             .collect();
         *my_idxs.first().unwrap()
+    }
+
+    pub fn neighbours(&self) -> Vec<Direction> {
+        let rank = self.as_rank();
+        let dirs: Vec<Direction> = Direction::iterator()
+            .enumerate()
+            .filter_map(|(idx, d)| if i16::abs(rank - (idx as i16)) % 8 == 1 { Some(d)} else { None  })
+            .collect();
+        dirs
     }
 
     pub fn rotation(&self, other: &Direction) -> i16 {

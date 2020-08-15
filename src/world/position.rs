@@ -11,11 +11,14 @@ pub struct Offset {pub x: i16, pub y: i16}
 pub trait Positional {
     fn translate(&self, offset: Offset) -> Self;
     fn translate_direction(&self, direction: Direction) -> Self;
+    fn translate_n_direction(&self, direction: Direction, distance: i16) -> Self;
     fn area(&self, other: &Self) -> i16;
     fn is_neighbour(&self, other: &Self) -> bool;
     fn is_legal_direction(&self, direction: Direction) -> bool;
     fn is_inside(&self, other: &Self) -> bool;
+    fn clamp(&self, other: &Self) -> Self;
     fn steps(&self, other: &Self) -> Option<Vec<Coord>>;
+    fn knight_offsets(&self) -> Vec<Coord>;
 }
 
 impl Sub for Coord {
@@ -29,6 +32,24 @@ impl Sub for Coord {
 }
 
 impl Positional for Coord {
+    fn clamp(&self, other: &Self) -> Self {
+        Coord{x: usize::min(self.x, other.x), y: usize::min(self.y, other.y)}
+    }
+
+    fn knight_offsets(&self) -> Vec<Coord> {
+        let mut coords = Vec::new();
+        for dy in -2..3 {
+            if dy == 0 || self.y as i32 + dy < 0 { continue; }
+            for dx in -2..3 {
+                if i32::abs(dx) + i32::abs(dy) != 3 { continue; }
+                if dx == 0 || self.x as i32 + dx < 0 { continue; }
+
+                coords.push(Coord{x: self.x + dx as usize, y: self.y + dy as usize});
+            }
+        }
+        coords
+    }
+
     fn translate(&self, offset: Offset) -> Self {
         Coord{
             x: (self.x as i16 + offset.x) as usize,
@@ -47,6 +68,14 @@ impl Positional for Coord {
             Direction::West => self.translate(Offset{x: -1, y: 0}),
             Direction::NorthWest => self.translate(Offset{x: -1, y: -1}),
         }
+    }
+
+    fn translate_n_direction(&self, direction: Direction, distance: i16) -> Self {
+        let mut coord = self.clone();
+        for _ in 0..distance {
+            coord = coord.translate_direction(direction);
+        }
+        coord
     }
 
     fn is_legal_direction(&self, direction: Direction) -> bool {

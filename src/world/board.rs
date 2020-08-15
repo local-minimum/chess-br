@@ -1,4 +1,5 @@
 use rand::Rng;
+use std::cmp;
 
 use crate::world::position::{Coord, Positional};
 use crate::world::direction::Direction;
@@ -20,6 +21,7 @@ pub trait Board {
     fn neighbour_min(&self, coord: &Coord, edge: &Coord) -> u16;
     fn neighbour_has_lambda(&self, coord: &Coord, out_of_bound_true: bool, test: &dyn Fn(u16, u16) -> bool) -> bool;
     fn find_first(&self, start: &Coord, direction: Direction) -> Option<u16>;
+    fn find_all(&self, lower_left: &Coord, upper_right: &Coord) -> Vec<u16>;
 }
 
 fn min_non_zero(a: u16, b: u16) -> u16 {
@@ -222,5 +224,16 @@ impl Board for Vec<Vec<u16>> {
             }
         }
         Some(self[pos.y][pos.x])
+    }
+
+    fn find_all(&self, lower_left: &Coord, upper_right: &Coord) -> Vec<u16> {
+        let mut pids = Vec::new();
+        let shape = self.shape();
+        for y in cmp::max(0, lower_left.y)..cmp::min(upper_right.y + 1, shape.y) {
+            for x in cmp::max(0, lower_left.x)..cmp::min(upper_right.x + 1, shape.x) {
+                if self[y][x] != 0 { pids.push(self[y][x]); }
+            }
+        }
+        pids
     }
 }

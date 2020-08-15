@@ -45,7 +45,8 @@ Doesn't depend on shapes but given game length of N ticks.
 - [ ] Allow promotion (requires pawn know traversed distance)
 - [ ] Gain piece by proximity
 - [x] Castling pre 1972 rules (req know traversed distance)
-- [ ] Find all opposing pieces that threaten ( watch out for king special rules to no stack overflow)
+- [x] Find all opposing pieces that threaten ( watch out for king special rules to no stack overflow)
+- [ ] Full can move by check check and threaten
 
 ## Scoring
 
