@@ -58,6 +58,7 @@ impl PlayerState {
 #[derive(Debug, Clone)]
 pub struct Player {
     pub player_id: u16,
+    pub king_id: u16,
     pub game_name: String,
     pub user_name: String,
     pub score: u16,
@@ -68,6 +69,7 @@ impl Player {
     pub fn new(player_id: u16, user_name: String, namer: &mut GamerNamer) -> Player {
         Player{
             player_id,
+            king_id: 0,
             game_name: namer.next(),
             user_name: user_name.clone(),
             score: 0,

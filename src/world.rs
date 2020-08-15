@@ -314,6 +314,7 @@ impl World {
                         piece.place(coord.clone());
                         let piece_id = self.pieces.len() as u16 + 1;
                         self.pieces.insert(piece_id, piece);
+                        self.players.get_mut(uid).unwrap().king_id = piece_id;
                         if self.pieces_map[coord.y][coord.x] > 0 {
                             self.do_take(
                                 self.pieces_map[coord.y][coord.x],

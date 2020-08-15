@@ -47,6 +47,7 @@ Doesn't depend on shapes but given game length of N ticks.
 - [x] Castling pre 1972 rules (req know traversed distance)
 - [x] Find all opposing pieces that threaten ( watch out for king special rules to no stack overflow)
 - [ ] Full can move by check check and threaten
+- [ ] Check if hypothetical move resolves check...
 
 ## Scoring
 

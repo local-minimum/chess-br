@@ -102,9 +102,19 @@ impl Piece {
         cross
     }
 
+    pub fn my_king_is_checked(&self, world: &World) -> bool {
+        let king_id = world.players.get(&self.player).unwrap().king_id;
+        let king: &Piece = world.pieces.get(&king_id).unwrap();
+        king
+            .others_threatening_me_at(world, king.position().unwrap())
+            .len() > 0
+    }
+
     pub fn can_move_to(&self, world: &World, coord: &Coord) -> bool {
         let pos = self.position().unwrap();
         let off: Offset = *coord - *pos;
+        let checked = self.my_king_is_checked(world);
+        
         // May not self take
         match world.pieces.get(&world.pieces_map[coord.y][coord.x]) {
             Some(target_piece) => {
@@ -114,27 +124,44 @@ impl Piece {
             },
             _ => (),
         }
+
         match self.kind {
             PieceType::Empty => false,
             PieceType::King => {
-                // Castling is only 2 along cardinal so no legal more than 2
-                if off.manhattan() > 2 { return false; }
-                if off.chebyshev() == 1 {
-                    // TODO: Check so coord is not in check
+                if self.threatening(world).iter().any(| c: &Coord | c.x == coord.x && c.y == coord.y)
+                    && self.others_threatening_me_at(world, coord).len() == 0
+                {
                     return true;
                 }
-                // Castling
-                if self.unmoved() { return false };
-                // TODO: Check so pos, intermediate and coord is not in check
+
+                // Else must be Castling
+                if !self.unmoved() || checked { return false };
+                // Castling always 2 steps towards rook
+                if !(off.chebyshev() == 2) {
+                    return false;
+                }
+                // May not castle through check
+                let dir = off.as_direction().unwrap();
+                let mut current = pos.clone();
+                for _ in 0..2 {
+                    current = current.translate_direction(dir);
+                    if self.others_threatening_me_at(world, &current).len() > 0 {
+                        return false;
+                    }
+                }
+
                 // Project on world to first piece in direction
-                match world.pieces_map.find_first(&coord, off.as_direction().unwrap()) {
+                match world.pieces_map.find_first(&coord, dir) {
                     Some(other_id) => {
                         let other = world.pieces.get(&other_id).unwrap();
                         // First piece find must be ours and umoved too
                         if other.player != self.player || !other.unmoved() { return false; }
                         // Must not be too far
                         let other_off: Offset = *other.position().unwrap() - *pos;
-                        if other_off.manhattan() >= MOVE_RANGE_LIMIT { return false; }
+                        let dist = other_off.chebyshev();
+                        if dist >= MOVE_RANGE_LIMIT { return false; }
+                        // Other must be at least 3 steps away since we're moving 2
+                        if dist < 3 { return false; }
                         // Check other is rook
                         other.kind.is_rook()
                     },
@@ -142,15 +169,15 @@ impl Piece {
                 }
             },
             PieceType::Pawn => {
-                if off.manhattan() > 2 { return false; }
+                if checked || off.manhattan() > 2 { return false; }
 
                 let off_dir = off.as_direction().unwrap();
                 let directions = self.pawn_direction();
 
                 // Not taking
                 if off.chebyshev() == off.manhattan() {
-                    // Move length
-                    if off.manhattan() == 2 || self.history.len() > 1 { return false; }
+                    // Move length, only 2 allowed first move
+                    if off.manhattan() == 2 && !self.unmoved() { return false; }
                     // Check not changing cardinal directions
                     if !directions.iter().any(| d | off_dir.is(d)) {
                         return false;
@@ -161,15 +188,12 @@ impl Piece {
                     }
                     return false;
                 }
-
-                // Taking is exactly one diag step
-                if off.chebyshev() > 1 || off.chebyshev() == 0 { return false }
-                // Must be something to take / we don't support en passant
-                if world.pieces_map[coord.y][coord.x] == 0 { return false };
-                // Must neighbour any existing direction
-                return !directions.iter().any(| d | off_dir.rotation(d).abs() < 2)
+                // Taking
+                return self.threatening(world)
+                    .iter()
+                    .any(|c: &Coord | c.x == coord.x && c.y == coord.y);
             },
-            PieceType::Knight => off.chebyshev() == 2 && off.skew() == 1,
+            PieceType::Knight => !checked && off.chebyshev() == 2 && off.skew() == 1,
             PieceType::Bishop => {
                 if off.chebyshev() < MOVE_RANGE_LIMIT && off.skew() == 0 {
                     return world.no_piece_between(pos, coord)
@@ -194,7 +218,7 @@ impl Piece {
         }
     }
 
-    fn all_threatening_me_at(&self, world: &World, pos: &Coord) -> Vec<u16> {
+    fn others_threatening_me_at(&self, world: &World, pos: &Coord) -> Vec<u16> {
         let shape = world.fog.shape();
         let lower_left = pos
             .translate_n_direction(Direction::NorthWest, MOVE_RANGE_LIMIT - 1)
@@ -259,7 +283,6 @@ impl Piece {
                 }
             },
             PieceType::Pawn => {
-                let moves = if self.unmoved() {2} else {1};
                 for cardinal in self.pawn_direction() {
                     for dir in cardinal.neighbours() {
                         let coord = pos.translate_direction(dir);
