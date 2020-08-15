@@ -261,15 +261,6 @@ impl Piece {
             PieceType::Pawn => {
                 let moves = if self.unmoved() {2} else {1};
                 for cardinal in self.pawn_direction() {
-                    // Non-taking
-                    let mut current = pos.clone();
-                    for _ in 0..moves {
-                        current = current.translate_direction(cardinal);
-                        if !current.is_inside(&shape) { break; }
-                        if world.pieces_map[current.y][current.x] == 0 { coords.push(current)}
-                    }
-
-                    // Taking
                     for dir in cardinal.neighbours() {
                         let coord = pos.translate_direction(dir);
                         if coord.is_inside(&shape) {
